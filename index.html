@@ -1,0 +1,1040 @@
+<!DOCTYPE html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HeavyHITR - Boxing Workout App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+    <style>
+        :root {
+            --primary: #E535D7;
+            --primary-light: #FF5EE9;
+            --secondary: #8935E5;
+            --secondary-light: #A35BFF;
+            --dark: #121212;
+            --dark-light: #1E1E1E;
+            --dark-lighter: #2D2D2D;
+            --text: #F8F8F8;
+            --text-muted: #B0B0B0;
+        }
+
+        .dark {
+            --bg-primary: var(--dark);
+            --bg-secondary: var(--dark-light);
+            --bg-tertiary: var(--dark-lighter);
+            --text-primary: var(--text);
+            --text-secondary: var(--text-muted);
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--secondary-light) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .btn {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn:after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+            background-repeat: no-repeat;
+            background-position: 50%;
+            transform: scale(10, 10);
+            opacity: 0;
+            transition: transform .5s, opacity 1s;
+        }
+        
+        .btn:active:after {
+            transform: scale(0, 0);
+            opacity: 0.3;
+            transition: 0s;
+        }
+        
+        .pulse-animation {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .slide-in {
+            animation: slideIn 0.5s forwards;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .workout-type-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--bg-tertiary);
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover, 
+        .slider::-moz-range-thumb:hover {
+            transform: scale(1.1);
+            background: var(--primary-light);
+        }
+
+        .round-indicator {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0;
+        }
+
+        .round-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--dark-lighter);
+            margin: 0 5px;
+            transition: all 0.3s ease;
+        }
+
+        .round-dot.active {
+            background-color: var(--primary);
+            transform: scale(1.3);
+        }
+
+        .round-dot.completed {
+            background-color: var(--secondary);
+        }
+
+        .coach-message {
+            min-height: 60px;
+        }
+
+        #progress-bar {
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: 3px;
+            transition: width 0.1s linear;
+        }
+
+        .audio-wave {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 20px;
+            gap: 3px;
+        }
+
+        .audio-bar {
+            width: 3px;
+            height: 100%;
+            background-color: var(--primary);
+            border-radius: 1.5px;
+            animation: soundWave 1s infinite;
+        }
+
+        .audio-bar:nth-child(2n) {
+            animation-delay: 0.3s;
+            background-color: var(--secondary);
+        }
+
+        .audio-bar:nth-child(3n) {
+            animation-delay: 0.6s;
+            background-color: var(--primary-light);
+        }
+
+        @keyframes soundWave {
+            0% { height: 40%; }
+            50% { height: 100%; }
+            100% { height: 40%; }
+        }
+        
+        /* Utilities */
+        .ring-pulse {
+            box-shadow: 0 0 0 rgba(232, 53, 215, 0.6);
+            animation: ringPulse 2s infinite;
+        }
+
+        @keyframes ringPulse {
+            0% { box-shadow: 0 0 0 0 rgba(232, 53, 215, 0.6); }
+            70% { box-shadow: 0 0 0 15px rgba(232, 53, 215, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(232, 53, 215, 0); }
+        }
+    </style>
+</head>
+<body class="dark">
+    <div class="container mx-auto px-4 py-6 max-w-md">
+        <!-- App Header -->
+        <div class="flex items-center justify-center mb-8">
+            <div class="text-center">
+                <h1 class="text-3xl font-bold gradient-text">HeavyHITR</h1>
+                <p class="text-sm text-gray-400">Boxing Heavy-Bag Workouts</p>
+            </div>
+        </div>
+
+        <!-- Workout Configuration Section -->
+        <div id="config-section" class="bg-gray-900 rounded-lg p-5 shadow-lg mb-6">
+            <h2 class="text-xl font-bold mb-4">Workout Setup</h2>
+            
+            <!-- Number of Rounds -->
+            <div class="mb-4">
+                <div class="flex justify-between mb-1">
+                    <label class="text-sm">Number of Rounds</label>
+                    <span id="rounds-value" class="text-sm font-bold gradient-text">6</span>
+                </div>
+                <input type="range" id="rounds" class="slider" min="1" max="12" value="6">
+            </div>
+            
+            <!-- Round Duration -->
+            <div class="mb-4">
+                <div class="flex justify-between mb-1">
+                    <label class="text-sm">Round Length</label>
+                    <span id="round-length-value" class="text-sm font-bold gradient-text">1:00</span>
+                </div>
+                <input type="range" id="round-length" class="slider" min="30" max="180" step="10" value="60">
+            </div>
+            
+            <!-- Break Duration -->
+            <div class="mb-4">
+                <div class="flex justify-between mb-1">
+                    <label class="text-sm">Break Length</label>
+                    <span id="break-length-value" class="text-sm font-bold gradient-text">0:20</span>
+                </div>
+                <input type="range" id="break-length" class="slider" min="10" max="60" step="5" value="20">
+            </div>
+            
+            <!-- Difficulty Level -->
+            <div class="mb-4">
+                <label class="text-sm block mb-2">Difficulty Level</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button class="difficulty-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-level="beginner">Beginner</button>
+                    <button class="difficulty-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium active" data-level="intermediate">Intermediate</button>
+                    <button class="difficulty-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-level="advanced">Advanced</button>
+                </div>
+            </div>
+            
+            <!-- Workout Type -->
+            <div class="mb-5">
+                <label class="text-sm block mb-2">Workout Type</label>
+                <div class="workout-type-selector">
+                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium active" data-type="punching">Punching</button>
+                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-type="footwork">Footwork</button>
+                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-type="defense">Defense</button>
+                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-type="conditioning">Conditioning</button>
+                </div>
+            </div>
+            
+            <!-- Start Button -->
+            <button id="start-workout" class="btn w-full py-3 rounded-md font-bold text-white gradient-bg">
+                START WORKOUT
+            </button>
+        </div>
+
+        <!-- Workout Display Section (Initially Hidden) -->
+        <div id="workout-section" class="hidden">
+            <div class="bg-gray-900 rounded-lg p-5 shadow-lg mb-6">
+                <!-- Timer Display -->
+                <div class="text-center mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <span id="current-status" class="text-sm text-gray-400">Round</span>
+                            <span id="current-round" class="text-sm font-bold gradient-text ml-1">1/6</span>
+                        </div>
+                        <div id="audio-indicator" class="audio-wave hidden">
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-400">Level:</span>
+                            <span id="difficulty-display" class="text-sm font-bold gradient-text ml-1">Intermediate</span>
+                        </div>
+                    </div>
+                    
+                    <div id="timer-display" class="text-5xl font-bold mb-2 gradient-text">1:00</div>
+                    
+                    <div id="progress-bar">
+                        <div id="progress-fill"></div>
+                    </div>
+                </div>
+                
+                <!-- Round Indicators -->
+                <div class="round-indicator" id="round-indicators">
+                    <!-- Will be filled by JS -->
+                </div>
+                
+                <!-- Workout Type & Instructions -->
+                <div class="text-center mb-4">
+                    <h3 id="workout-focus" class="text-xl font-bold mb-1">Jab-Cross Combinations</h3>
+                    <p id="workout-instruction" class="text-sm text-gray-400">Focus on speed and accuracy</p>
+                </div>
+                
+                <!-- Coach Messages -->
+                <div class="coach-message text-center mb-4">
+                    <div id="coach-message" class="text-md font-medium italic">Ready to begin!</div>
+                </div>
+                
+                <!-- Workout Controls -->
+                <div class="flex gap-3">
+                    <button id="pause-workout" class="btn flex-1 py-3 rounded-md font-bold text-white bg-gray-800">
+                        PAUSE
+                    </button>
+                    <button id="end-workout" class="btn flex-1 py-3 rounded-md font-bold text-white bg-gray-700">
+                        END
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completed Workout Section (Initially Hidden) -->
+        <div id="completed-section" class="hidden">
+            <div class="bg-gray-900 rounded-lg p-5 shadow-lg mb-6 text-center">
+                <h2 class="text-2xl font-bold mb-2 gradient-text">Workout Complete!</h2>
+                <p class="text-md mb-4">Great job! You crushed it today.</p>
+                
+                <div class="mb-5">
+                    <div class="flex justify-between mb-1">
+                        <span>Total Rounds:</span>
+                        <span id="summary-rounds" class="font-bold gradient-text">6</span>
+                    </div>
+                    <div class="flex justify-between mb-1">
+                        <span>Total Workout Time:</span>
+                        <span id="summary-time" class="font-bold gradient-text">7:20</span>
+                    </div>
+                    <div class="flex justify-between mb-1">
+                        <span>Workout Level:</span>
+                        <span id="summary-level" class="font-bold gradient-text">Intermediate</span>
+                    </div>
+                    <div class="flex justify-between mb-1">
+                        <span>Workout Type:</span>
+                        <span id="summary-type" class="font-bold gradient-text">Punching</span>
+                    </div>
+                </div>
+                
+                <button id="new-workout" class="btn w-full py-3 rounded-md font-bold text-white gradient-bg">
+                    START NEW WORKOUT
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check for dark mode preference and set appropriate class
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+        
+        // Audio Context for workout sounds
+        let audioContext;
+        let audioInitialized = false;
+        let beatInterval;
+        let oscillator;
+        let gainNode;
+        
+        // Workout configurations
+        const workoutConfig = {
+            rounds: 6,
+            roundLength: 60, // in seconds
+            breakLength: 20, // in seconds
+            difficulty: 'intermediate',
+            workoutType: 'punching',
+            bpmRanges: {
+                beginner: { min: 90, max: 110 },
+                intermediate: { min: 120, max: 140 },
+                advanced: { min: 150, max: 170 }
+            }
+        };
+        
+        // Workout state
+        let workoutState = {
+            isRunning: false,
+            isPaused: false,
+            currentRound: 0,
+            isBreak: false,
+            timeRemaining: 0,
+            totalTime: 0,
+            interval: null
+        };
+        
+        // Workout content by type
+        const workoutContent = {
+            punching: [
+                { focus: "Jab-Cross Combinations", instruction: "Focus on speed and accuracy" },
+                { focus: "Hooks and Uppercuts", instruction: "Generate power from your hips" },
+                { focus: "Body Shots", instruction: "Bend knees and aim for the ribs" },
+                { focus: "Four-Punch Combinations", instruction: "End with a strong power punch" },
+                { focus: "Speed Drills", instruction: "Quick, light punches in succession" },
+                { focus: "Power Shots", instruction: "Put your weight behind each punch" },
+                { focus: "Jab Variations", instruction: "Mix up timing and power" },
+                { focus: "Counter Punching", instruction: "Slip and return with force" },
+                { focus: "Distance Management", instruction: "Work at different ranges" },
+                { focus: "Explosive Combinations", instruction: "Burst of speed and power" },
+                { focus: "Rhythm Changes", instruction: "Alternate between slow and fast" },
+                { focus: "Head Movement & Punches", instruction: "Slip, weave, then strike" }
+            ],
+            footwork: [
+                { focus: "Pivot Drills", instruction: "Rotate on the balls of your feet" },
+                { focus: "Lateral Movement", instruction: "Side-to-side with good balance" },
+                { focus: "In-and-Out Movement", instruction: "Quick advance and retreat" },
+                { focus: "Angle Creation", instruction: "Step to create new attack angles" },
+                { focus: "Circle Movement", instruction: "Move around the bag constantly" },
+                { focus: "Stance Switching", instruction: "Orthodox to southpaw transitions" },
+                { focus: "Quick Direction Changes", instruction: "Change direction on cue" },
+                { focus: "Distance Control", instruction: "Maintain optimal striking range" }
+            ],
+            defense: [
+                { focus: "Slip & Roll Drills", instruction: "Evade and counter immediately" },
+                { focus: "Blocking Techniques", instruction: "Proper guard positioning" },
+                { focus: "Parry Practice", instruction: "Redirect incoming punches" },
+                { focus: "Cover Up Drills", instruction: "Protect against combinations" },
+                { focus: "Pull Counter Technique", instruction: "Pull back and return fire" },
+                { focus: "Catch and Counter", instruction: "Catch punches and respond" },
+                { focus: "Shell Defense", instruction: "Protect body and head" },
+                { focus: "Distance Management", instruction: "Control space to avoid hits" }
+            ],
+            conditioning: [
+                { focus: "High-Intensity Burst", instruction: "Maximum output for 20 seconds" },
+                { focus: "Endurance Drill", instruction: "Steady pace, maintain form" },
+                { focus: "Explosive Power", instruction: "Full power on every strike" },
+                { focus: "Volume Punching", instruction: "High number of strikes" },
+                { focus: "Punch-Out Drill", instruction: "Empty the tank in this round" },
+                { focus: "Active Recovery", instruction: "Light movement, deep breathing" },
+                { focus: "Speed-Endurance", instruction: "Fast punches with minimal rest" },
+                { focus: "Cardio Burn", instruction: "Keep heart rate elevated" }
+            ]
+        };
+        
+        // Coach messages
+        const coachMessages = {
+            encouragement: [
+                "Keep it up! Looking sharp!",
+                "Great work! Don't stop now!",
+                "You've got this! Push through!",
+                "Stay focused! Excellent form!",
+                "Dig deep! Show that bag who's boss!",
+                "That's it! Keep that rhythm!",
+                "Power and precision! Beautiful!",
+                "You're crushing it! Keep going!",
+                "Strong finish now! All out!",
+                "Eyes on the target! Great focus!"
+            ],
+            technique: [
+                "Keep your guard up!",
+                "Rotate those hips for power!",
+                "Stay on the balls of your feet!",
+                "Snap those punches back!",
+                "Breathe out with each punch!",
+                "Keep those hands up after combos!",
+                "Double-up that jab!",
+                "Mix up your punch height!",
+                "Follow through on those power shots!",
+                "Maintain your stance between combinations!"
+            ],
+            breakTime: [
+                "Catch your breath, but stay moving!",
+                "Shake out those arms, next round soon!",
+                "Stay focused during your recovery!",
+                "Hydrate quickly if you need to!",
+                "Mentally prepare for the next round!",
+                "Deep breaths, in through nose, out through mouth!",
+                "Reset your form and technique!",
+                "Brief rest, then back to work!",
+                "Good work so far! Keep that intensity coming!",
+                "Recovery is part of training too!"
+            ],
+            roundStart: [
+                "New round! Fresh start!",
+                "Let's go! Show me what you've got!",
+                "Time to work! Give it everything!",
+                "Focus on technique this round!",
+                "This is your round! Own it!",
+                "Attack this round with purpose!",
+                "Round up! Time to shine!",
+                "Let's see your best work this round!",
+                "Fresh round, fresh energy!",
+                "This is where champions are made!"
+            ],
+            roundEnd: [
+                "Great round! Way to push!",
+                "Excellent work! Rest up!",
+                "You crushed that round!",
+                "Good intensity! Catch your breath!",
+                "Way to push through! Short break now!",
+                "Round complete! Well done!",
+                "That's one in the bank! Quick recovery!",
+                "Solid effort! Brief rest, then back at it!",
+                "You're getting stronger with every round!",
+                "Fantastic work! Quick breather!"
+            ],
+            workoutComplete: [
+                "Workout complete! You crushed it!",
+                "That's a wrap! Great session today!",
+                "Fantastic effort! You should be proud!",
+                "Workout finished! You're getting stronger!",
+                "All done! Way to push yourself!",
+                "Complete! That's how champions train!",
+                "Session complete! You left it all out there!",
+                "That's it! Incredible work today!",
+                "Workout done! Your dedication shows!",
+                "Finished strong! Rest and recover now!"
+            ]
+        };
+        
+        // DOM Elements
+        const elements = {
+            // Configuration elements
+            configSection: document.getElementById('config-section'),
+            roundsSlider: document.getElementById('rounds'),
+            roundsValue: document.getElementById('rounds-value'),
+            roundLengthSlider: document.getElementById('round-length'),
+            roundLengthValue: document.getElementById('round-length-value'),
+            breakLengthSlider: document.getElementById('break-length'),
+            breakLengthValue: document.getElementById('break-length-value'),
+            difficultyBtns: document.querySelectorAll('.difficulty-btn'),
+            workoutTypeBtns: document.querySelectorAll('.workout-type-btn'),
+            startWorkoutBtn: document.getElementById('start-workout'),
+            
+            // Workout display elements
+            workoutSection: document.getElementById('workout-section'),
+            currentStatus: document.getElementById('current-status'),
+            currentRound: document.getElementById('current-round'),
+            timerDisplay: document.getElementById('timer-display'),
+            progressBar: document.getElementById('progress-fill'),
+            roundIndicators: document.getElementById('round-indicators'),
+            workoutFocus: document.getElementById('workout-focus'),
+            workoutInstruction: document.getElementById('workout-instruction'),
+            coachMessage: document.getElementById('coach-message'),
+            pauseWorkoutBtn: document.getElementById('pause-workout'),
+            endWorkoutBtn: document.getElementById('end-workout'),
+            difficultyDisplay: document.getElementById('difficulty-display'),
+            audioIndicator: document.getElementById('audio-indicator'),
+            
+            // Completed section elements
+            completedSection: document.getElementById('completed-section'),
+            summaryRounds: document.getElementById('summary-rounds'),
+            summaryTime: document.getElementById('summary-time'),
+            summaryLevel: document.getElementById('summary-level'),
+            summaryType: document.getElementById('summary-type'),
+            newWorkoutBtn: document.getElementById('new-workout')
+        };
+
+        // Initialize Audio Context
+        function initAudio() {
+            if (audioInitialized) return;
+            
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = 0.3;
+                gainNode.connect(audioContext.destination);
+                audioInitialized = true;
+                elements.audioIndicator.classList.remove('hidden');
+            } catch (e) {
+                console.error('Web Audio API not supported:', e);
+            }
+        }
+
+        // Generate beat sound
+        function startBeat() {
+            if (!audioInitialized) return;
+            
+            const bpmRange = workoutConfig.bpmRanges[workoutConfig.difficulty];
+            const bpm = Math.floor(Math.random() * (bpmRange.max - bpmRange.min + 1)) + bpmRange.min;
+            const beatInterval = 60000 / bpm;
+            
+            let lastBeatTime = 0;
+            
+            // Clear existing interval if any
+            if (beatInterval) {
+                clearInterval(beatInterval);
+            }
+            
+            // Set new beat interval
+            beatInterval = setInterval(() => {
+                const now = audioContext.currentTime;
+                
+                // Only play if enough time has passed (avoiding rapid-fire beats)
+                if (now - lastBeatTime > 0.1) {
+                    // Create and configure oscillator
+                    oscillator = audioContext.createOscillator();
+                    oscillator.type = 'sine';
+                    oscillator.frequency.value = 330;
+                    
+                    // Create and configure gain node for this beat
+                    const beatGain = audioContext.createGain();
+                    beatGain.gain.value = 0.2;
+                    
+                    // Connect nodes
+                    oscillator.connect(beatGain);
+                    beatGain.connect(gainNode);
+                    
+                    // Schedule envelope
+                    const startTime = now;
+                    const stopTime = startTime + 0.1;
+                    
+                    beatGain.gain.setValueAtTime(0.2, startTime);
+                    beatGain.gain.exponentialRampToValueAtTime(0.001, stopTime);
+                    
+                    // Start and stop oscillator
+                    oscillator.start(startTime);
+                    oscillator.stop(stopTime);
+                    
+                    lastBeatTime = now;
+                }
+            }, beatInterval);
+        }
+
+        // Stop beat sound
+        function stopBeat() {
+            if (beatInterval) {
+                clearInterval(beatInterval);
+                beatInterval = null;
+            }
+            
+            if (oscillator) {
+                oscillator.stop();
+                oscillator.disconnect();
+                oscillator = null;
+            }
+            
+            elements.audioIndicator.classList.add('hidden');
+        }
+
+        // Format time (seconds) to MM:SS
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Get random item from array
+        function getRandomItem(array) {
+            return array[Math.floor(Math.random() * array.length)];
+        }
+
+        // Update coach message
+        function updateCoachMessage(messageType) {
+            const message = getRandomItem(coachMessages[messageType]);
+            elements.coachMessage.textContent = message;
+            elements.coachMessage.classList.add('slide-in');
+            setTimeout(() => elements.coachMessage.classList.remove('slide-in'), 500);
+        }
+
+        // Update workout focus for current round
+        function updateWorkoutFocus() {
+            const content = workoutContent[workoutConfig.workoutType];
+            const roundIndex = (workoutState.currentRound - 1) % content.length;
+            const focus = content[roundIndex];
+            
+            elements.workoutFocus.textContent = focus.focus;
+            elements.workoutInstruction.textContent = focus.instruction;
+        }
+
+        // Update round indicators
+        function updateRoundIndicators() {
+            elements.roundIndicators.innerHTML = '';
+            
+            for (let i = 1; i <= workoutConfig.rounds; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'round-dot';
+                
+                if (i < workoutState.currentRound) {
+                    dot.classList.add('completed');
+                } else if (i === workoutState.currentRound) {
+                    dot.classList.add('active');
+                }
+                
+                elements.roundIndicators.appendChild(dot);
+            }
+        }
+
+        // Start the workout timer
+        function startWorkout() {
+            // Initialize workout state
+            workoutState.isRunning = true;
+            workoutState.isPaused = false;
+            workoutState.currentRound = 1;
+            workoutState.isBreak = false;
+            workoutState.timeRemaining = workoutConfig.roundLength;
+            workoutState.totalTime = 0;
+            
+            // Setup UI
+            elements.configSection.classList.add('hidden');
+            elements.workoutSection.classList.remove('hidden');
+            elements.completedSection.classList.add('hidden');
+            
+            // Update round display
+            elements.currentRound.textContent = `${workoutState.currentRound}/${workoutConfig.rounds}`;
+            elements.currentStatus.textContent = 'Round';
+            elements.difficultyDisplay.textContent = workoutConfig.difficulty.charAt(0).toUpperCase() + workoutConfig.difficulty.slice(1);
+            
+            // Setup round indicators
+            updateRoundIndicators();
+            
+            // Set workout focus
+            updateWorkoutFocus();
+            
+            // Set initial coach message
+            updateCoachMessage('roundStart');
+            
+            // Start the timer
+            updateTimerDisplay();
+            
+            // Initialize audio
+            initAudio();
+            startBeat();
+            
+            // Start interval
+            workoutState.interval = setInterval(updateWorkoutTimer, 1000);
+        }
+
+        // Update the workout timer
+        function updateWorkoutTimer() {
+            if (workoutState.isPaused) return;
+            
+            workoutState.timeRemaining--;
+            workoutState.totalTime++;
+            
+            // Update timer display
+            updateTimerDisplay();
+            
+            // Check if time is up for current round or break
+            if (workoutState.timeRemaining <= 0) {
+                if (workoutState.isBreak) {
+                    // Break is over, start new round
+                    workoutState.isBreak = false;
+                    workoutState.currentRound++;
+                    
+                    // Check if workout is complete
+                    if (workoutState.currentRound > workoutConfig.rounds) {
+                        completeWorkout();
+                        return;
+                    }
+                    
+                    // Setup for new round
+                    workoutState.timeRemaining = workoutConfig.roundLength;
+                    elements.currentStatus.textContent = 'Round';
+                    elements.currentRound.textContent = `${workoutState.currentRound}/${workoutConfig.rounds}`;
+                    updateRoundIndicators();
+                    updateWorkoutFocus();
+                    updateCoachMessage('roundStart');
+                    
+                    // Start beat for round
+                    startBeat();
+                } else {
+                    // Round is over, start break (unless it's the last round)
+                    if (workoutState.currentRound === workoutConfig.rounds) {
+                        completeWorkout();
+                        return;
+                    }
+                    
+                    workoutState.isBreak = true;
+                    workoutState.timeRemaining = workoutConfig.breakLength;
+                    elements.currentStatus.textContent = 'Break';
+                    updateCoachMessage('roundEnd');
+                    
+                    // Stop beat during break
+                    stopBeat();
+                }
+            } else {
+                // During workout, periodically update coach messages
+                if (!workoutState.isBreak && workoutState.timeRemaining % 15 === 0) {
+                    const messageType = Math.random() > 0.5 ? 'encouragement' : 'technique';
+                    updateCoachMessage(messageType);
+                }
+                
+                // During break, update break messages
+                if (workoutState.isBreak && workoutState.timeRemaining % 10 === 0) {
+                    updateCoachMessage('breakTime');
+                }
+                
+                // Last 3 seconds of break, countdown
+                if (workoutState.isBreak && workoutState.timeRemaining <= 3) {
+                    elements.coachMessage.textContent = `Get ready! ${workoutState.timeRemaining}...`;
+                }
+            }
+        }
+
+        // Update timer display
+        function updateTimerDisplay() {
+            elements.timerDisplay.textContent = formatTime(workoutState.timeRemaining);
+            
+            // Update progress bar
+            const totalTime = workoutState.isBreak ? workoutConfig.breakLength : workoutConfig.roundLength;
+            const progressPercentage = ((totalTime - workoutState.timeRemaining) / totalTime) * 100;
+            elements.progressBar.style.width = `${progressPercentage}%`;
+            
+            // Add pulse animation for last 10 seconds
+            if (workoutState.timeRemaining <= 10) {
+                elements.timerDisplay.classList.add('pulse-animation');
+            } else {
+                elements.timerDisplay.classList.remove('pulse-animation');
+            }
+        }
+
+        // Pause or resume workout
+        function togglePauseWorkout() {
+            workoutState.isPaused = !workoutState.isPaused;
+            
+            if (workoutState.isPaused) {
+                elements.pauseWorkoutBtn.textContent = 'RESUME';
+                elements.pauseWorkoutBtn.classList.add('gradient-bg');
+                stopBeat();
+            } else {
+                elements.pauseWorkoutBtn.textContent = 'PAUSE';
+                elements.pauseWorkoutBtn.classList.remove('gradient-bg');
+                if (!workoutState.isBreak) {
+                    startBeat();
+                }
+            }
+        }
+
+        // End workout early
+        function endWorkout() {
+            // Confirm before ending
+            if (confirm('Are you sure you want to end this workout?')) {
+                completeWorkout();
+            }
+        }
+
+        // Complete workout
+        function completeWorkout() {
+            // Stop the timer
+            clearInterval(workoutState.interval);
+            workoutState.isRunning = false;
+            
+            // Stop the beat
+            stopBeat();
+            
+            // Show completion message
+            updateCoachMessage('workoutComplete');
+            
+            // Switch to completed section
+            setTimeout(() => {
+                elements.workoutSection.classList.add('hidden');
+                elements.completedSection.classList.remove('hidden');
+                
+                // Update summary
+                elements.summaryRounds.textContent = workoutState.currentRound;
+                elements.summaryTime.textContent = formatTime(workoutState.totalTime);
+                elements.summaryLevel.textContent = workoutConfig.difficulty.charAt(0).toUpperCase() + workoutConfig.difficulty.slice(1);
+                elements.summaryType.textContent = workoutConfig.workoutType.charAt(0).toUpperCase() + workoutConfig.workoutType.slice(1);
+            }, 2000);
+        }
+
+        // Start a new workout
+        function newWorkout() {
+            elements.completedSection.classList.add('hidden');
+            elements.configSection.classList.remove('hidden');
+        }
+
+        // Initialize the application
+        function init() {
+            // Set up configuration sliders
+            elements.roundsSlider.addEventListener('input', function() {
+                workoutConfig.rounds = parseInt(this.value);
+                elements.roundsValue.textContent = this.value;
+            });
+            
+            elements.roundLengthSlider.addEventListener('input', function() {
+                workoutConfig.roundLength = parseInt(this.value);
+                elements.roundLengthValue.textContent = formatTime(this.value);
+            });
+            
+            elements.breakLengthSlider.addEventListener('input', function() {
+                workoutConfig.breakLength = parseInt(this.value);
+                elements.breakLengthValue.textContent = formatTime(this.value);
+            });
+            
+            // Set up difficulty buttons
+            elements.difficultyBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    elements.difficultyBtns.forEach(b => b.classList.remove('active', 'gradient-bg'));
+                    this.classList.add('active', 'gradient-bg');
+                    workoutConfig.difficulty = this.dataset.level;
+                });
+            });
+            
+            // Set up workout type buttons
+            elements.workoutTypeBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    elements.workoutTypeBtns.forEach(b => b.classList.remove('active', 'gradient-bg'));
+                    this.classList.add('active', 'gradient-bg');
+                    workoutConfig.workoutType = this.dataset.type;
+                });
+            });
+            
+            // Set up button event listeners
+            elements.startWorkoutBtn.addEventListener('click', startWorkout);
+            elements.pauseWorkoutBtn.addEventListener('click', togglePauseWorkout);
+            elements.endWorkoutBtn.addEventListener('click', endWorkout);
+            elements.newWorkoutBtn.addEventListener('click', newWorkout);
+            
+            // Initialize active buttons
+            document.querySelector('.difficulty-btn[data-level="intermediate"]').classList.add('active', 'gradient-bg');
+            document.querySelector('.workout-type-btn[data-type="punching"]').classList.add('active', 'gradient-bg');
+
+            // Register service worker
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+                });
+            }
+            
+            // Set data to localStorage
+            try {
+                // Save settings to localStorage for persistence
+                function saveSettings() {
+                    const settings = {
+                        rounds: workoutConfig.rounds,
+                        roundLength: workoutConfig.roundLength,
+                        breakLength: workoutConfig.breakLength,
+                        difficulty: workoutConfig.difficulty,
+                        workoutType: workoutConfig.workoutType
+                    };
+                    
+                    localStorage.setItem('heavyhitr-settings', JSON.stringify(settings));
+                }
+                
+                // Load settings from localStorage
+                function loadSettings() {
+                    const savedSettings = localStorage.getItem('heavyhitr-settings');
+                    if (savedSettings) {
+                        const settings = JSON.parse(savedSettings);
+                        
+                        // Apply saved settings
+                        workoutConfig.rounds = settings.rounds || 6;
+                        workoutConfig.roundLength = settings.roundLength || 60;
+                        workoutConfig.breakLength = settings.breakLength || 20;
+                        workoutConfig.difficulty = settings.difficulty || 'intermediate';
+                        workoutConfig.workoutType = settings.workoutType || 'punching';
+                        
+                        // Update UI to match saved settings
+                        elements.roundsSlider.value = workoutConfig.rounds;
+                        elements.roundsValue.textContent = workoutConfig.rounds;
+                        
+                        elements.roundLengthSlider.value = workoutConfig.roundLength;
+                        elements.roundLengthValue.textContent = formatTime(workoutConfig.roundLength);
+                        
+                        elements.breakLengthSlider.value = workoutConfig.breakLength;
+                        elements.breakLengthValue.textContent = formatTime(workoutConfig.breakLength);
+                        
+                        // Update active buttons
+                        elements.difficultyBtns.forEach(btn => {
+                            btn.classList.remove('active', 'gradient-bg');
+                            if (btn.dataset.level === workoutConfig.difficulty) {
+                                btn.classList.add('active', 'gradient-bg');
+                            }
+                        });
+                        
+                        elements.workoutTypeBtns.forEach(btn => {
+                            btn.classList.remove('active', 'gradient-bg');
+                            if (btn.dataset.type === workoutConfig.workoutType) {
+                                btn.classList.add('active', 'gradient-bg');
+                            }
+                        });
+                    }
+                }
+                
+                // Save settings when they change
+                elements.roundsSlider.addEventListener('change', saveSettings);
+                elements.roundLengthSlider.addEventListener('change', saveSettings);
+                elements.breakLengthSlider.addEventListener('change', saveSettings);
+                
+                elements.difficultyBtns.forEach(btn => {
+                    btn.addEventListener('click', saveSettings);
+                });
+                
+                elements.workoutTypeBtns.forEach(btn => {
+                    btn.addEventListener('click', saveSettings);
+                });
+                
+                // Load settings on init
+                loadSettings();
+            } catch (e) {
+                console.log('LocalStorage not available:', e);
+            }
+        }
+        
+        // Initialize the app
+        init();
+    </script>
+
+
+</body></html>
