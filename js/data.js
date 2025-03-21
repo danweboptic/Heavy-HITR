@@ -1,10 +1,12 @@
 /**
  * HeavyHITR - Data Module
- * Contains workout content and coach messages
+ * Contains static data for the workout app
+ * @author danweboptic
+ * @lastUpdated 2025-03-21
  */
 
 // Workout content by type
-const workoutContent = {
+export const workoutContent = {
     punching: [
         { focus: "Jab-Cross Combinations", instruction: "Focus on speed and accuracy" },
         { focus: "Hooks and Uppercuts", instruction: "Generate power from your hips" },
@@ -52,7 +54,7 @@ const workoutContent = {
 };
 
 // Coach messages
-const coachMessages = {
+export const coachMessages = {
     encouragement: [
         "Keep it up! Looking sharp!",
         "Great work! Don't stop now!",
@@ -126,8 +128,3 @@ const coachMessages = {
         "Finished strong! Rest and recover now!"
     ]
 };
-
-// Export data
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { workoutContent, coachMessages };
-}

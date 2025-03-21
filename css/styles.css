@@ -1,214 +1,346 @@
-:root {
-    --primary: #E535D7;
-    --primary-light: #FF5EE9;
-    --secondary: #8935E5;
-    --secondary-light: #A35BFF;
-    --dark: #121212;
-    --dark-light: #1E1E1E;
-    --dark-lighter: #2D2D2D;
-    --text: #F8F8F8;
-    --text-muted: #B0B0B0;
-}
+/**
+ * HeavyHITR - Custom Styles
+ * @author danweboptic
+ * @lastUpdated 2025-03-21 11:51:25
+ */
 
-.dark {
-    --bg-primary: var(--dark);
-    --bg-secondary: var(--dark-light);
-    --bg-tertiary: var(--dark-lighter);
-    --text-primary: var(--text);
-    --text-secondary: var(--text-muted);
+/* Base Styles */
+:root {
+  --primary-color: #FF4C29;
+  --primary-dark: #E83A20;
+  --secondary-color: #4361EE;
+  --secondary-dark: #3A56D4;
+  --dark-bg: #121212;
+  --dark-card: #1E1E1E;
+  --dark-input: #2D2D2D;
+  --light-text: #E1E1E1;
+  --muted-text: #909090;
+  --gradient-start: #FF4C29;
+  --gradient-end: #4361EE;
+  --success-color: #2ECC71;
+  --warning-color: #F39C12;
+  --danger-color: #E74C3C;
 }
 
 body {
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--dark-bg);
+  color: var(--light-text);
+  line-height: 1.6;
+}
+
+body.dark {
+  --dark-bg: #121212;
+  --dark-card: #1E1E1E;
+  --dark-input: #2D2D2D;
+  --light-text: #E1E1E1;
+  --muted-text: #909090;
+}
+
+body.light {
+  --dark-bg: #F5F5F5;
+  --dark-card: #FFFFFF;
+  --dark-input: #EAEAEA;
+  --light-text: #333333;
+  --muted-text: #707070;
+}
+
+/* Typography */
+.gradient-text {
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* UI Elements */
+.card {
+  background-color: var(--dark-card);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
 }
 
 .gradient-bg {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-}
-
-.gradient-text {
-    background: linear-gradient(135deg, var(--primary-light) 0%, var(--secondary-light) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
 }
 
 .btn {
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-.btn:after {
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-    background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
-    background-repeat: no-repeat;
-    background-position: 50%;
-    transform: scale(10, 10);
-    opacity: 0;
-    transition: transform .5s, opacity 1s;
+.btn::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
 }
 
-.btn:active:after {
-    transform: scale(0, 0);
-    opacity: 0.3;
-    transition: 0s;
+.btn:active::after {
+  transform: translateY(0);
 }
 
-.pulse-animation {
-    animation: pulse 1.5s infinite;
+.btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 76, 41, 0.3);
 }
 
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-
-.slide-in {
-    animation: slideIn 0.5s forwards;
-}
-
-@keyframes slideIn {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-.workout-type-selector {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-
+/* Input Elements */
 .slider {
-    -webkit-appearance: none;
-    width: 100%;
-    height: 8px;
-    border-radius: 4px;
-    background: var(--bg-tertiary);
-    outline: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 8px;
+  background: var(--dark-input);
+  outline: none;
+  transition: opacity 0.2s;
 }
 
 .slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--primary);
-    cursor: pointer;
-    transition: all 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
 }
 
 .slider::-moz-range-thumb {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--primary);
-    cursor: pointer;
-    transition: all 0.2s ease;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
 }
 
-.slider::-webkit-slider-thumb:hover, 
 .slider::-moz-range-thumb:hover {
-    transform: scale(1.1);
-    background: var(--primary-light);
+  transform: scale(1.1);
 }
 
-.round-indicator {
-    display: flex;
-    justify-content: center;
-    margin: 10px 0;
-}
-
-.round-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--dark-lighter);
-    margin: 0 5px;
-    transition: all 0.3s ease;
-}
-
-.round-dot.active {
-    background-color: var(--primary);
-    transform: scale(1.3);
-}
-
-.round-dot.completed {
-    background-color: var(--secondary);
-}
-
-.coach-message {
-    min-height: 60px;
-}
-
+/* Progress Bar */
 #progress-bar {
-    height: 6px;
-    background: var(--bg-tertiary);
-    border-radius: 3px;
-    overflow: hidden;
-    margin: 8px 0;
+  width: 100%;
+  height: 8px;
+  background-color: var(--dark-input);
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 #progress-fill {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
-    border-radius: 3px;
-    transition: width 0.1s linear;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  transition: width 1s linear;
+  border-radius: 4px;
 }
 
+/* Round Indicators */
+.round-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin: 15px 0;
+  flex-wrap: wrap;
+}
+
+.round-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--dark-input);
+  transition: all 0.3s ease;
+}
+
+.round-dot.active {
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  transform: scale(1.2);
+}
+
+.round-dot.completed {
+  background-color: var(--success-color);
+}
+
+/* Workout Type Selector */
+.workout-type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Audio Indicator */
 .audio-wave {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 20px;
-    gap: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 20px;
 }
 
 .audio-bar {
-    width: 3px;
-    height: 100%;
-    background-color: var(--primary);
-    border-radius: 1.5px;
-    animation: soundWave 1s infinite;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  animation: sound 0ms -800ms linear infinite alternate;
 }
 
-.audio-bar:nth-child(2n) {
-    animation-delay: 0.3s;
-    background-color: var(--secondary);
+@keyframes sound {
+  0% {
+    height: 5px;
+  }
+  100% {
+    height: 20px;
+  }
 }
 
-.audio-bar:nth-child(3n) {
-    animation-delay: 0.6s;
-    background-color: var(--primary-light);
+.audio-bar:nth-child(1) {
+  animation-duration: 474ms;
+}
+.audio-bar:nth-child(2) {
+  animation-duration: 433ms;
+}
+.audio-bar:nth-child(3) {
+  animation-duration: 407ms;
+}
+.audio-bar:nth-child(4) {
+  animation-duration: 458ms;
+}
+.audio-bar:nth-child(5) {
+  animation-duration: 400ms;
 }
 
-@keyframes soundWave {
-    0% { height: 40%; }
-    50% { height: 100%; }
-    100% { height: 40%; }
+/* Animations */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
-/* Utilities */
-.ring-pulse {
-    box-shadow: 0 0 0 rgba(232, 53, 215, 0.6);
-    animation: ringPulse 2s infinite;
+.pulse-animation {
+  animation: pulse 1s infinite;
 }
 
-@keyframes ringPulse {
-    0% { box-shadow: 0 0 0 0 rgba(232, 53, 215, 0.6); }
-    70% { box-shadow: 0 0 0 15px rgba(232, 53, 215, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(232, 53, 215, 0); }
+.slide-in {
+  animation: slideIn 0.5s ease-out forwards;
+}
+
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Coach Message */
+.coach-message {
+  min-height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* Theme Switch */
+.theme-switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 30px;
+}
+
+.theme-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.theme-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--dark-input);
+  transition: .4s;
+  border-radius: 30px;
+}
+
+.theme-slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .theme-slider {
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+}
+
+input:checked + .theme-slider:before {
+  transform: translateX(30px);
+}
+
+/* Animation for card transitions */
+.fade-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.fade-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fade-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 300ms, transform 300ms;
 }

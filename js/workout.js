@@ -1,10 +1,23 @@
 /**
  * HeavyHITR - Workout Module
- * Handles workout logic and timer functionality
+ * Manages workout functionality and timing
+ * @author danweboptic
+ * @lastUpdated 2025-03-21 11:48:06
  */
+import { workoutConfig, workoutState } from './settings.js';
+import { startAudio, stopAudio } from './audio.js';
+import { updateCoachMessage, updateWorkoutFocus, updateRoundIndicators, updateTimerDisplay, elements } from './ui.js';
+import { workoutContent, coachMessages } from './data.js';
+
+// Format time (seconds) to MM:SS
+export function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
 // Start the workout timer
-function startWorkout() {
+export function startWorkout(elements) {
     // Initialize workout state
     workoutState.isRunning = true;
     workoutState.isPaused = false;
@@ -27,20 +40,44 @@ function startWorkout() {
     updateRoundIndicators();
     
     // Set workout focus
-    updateWorkoutFocus();
+    updateWorkoutFocus(workoutContent);
     
     // Set initial coach message
-    updateCoachMessage('roundStart');
+    updateCoachMessage('roundStart', coachMessages);
     
-    // Start the timer
+    // Update timer display
     updateTimerDisplay();
     
-    // Initialize audio
-    initAudio();
-    startBeat();
+    // Start the audio
+    startAudio();
     
     // Start interval
     workoutState.interval = setInterval(updateWorkoutTimer, 1000);
+}
+
+// Pause or resume workout
+export function pauseWorkout(elements) {
+    workoutState.isPaused = !workoutState.isPaused;
+    
+    if (workoutState.isPaused) {
+        elements.pauseWorkoutBtn.textContent = 'RESUME';
+        elements.pauseWorkoutBtn.classList.add('gradient-bg');
+        stopAudio(elements);
+    } else {
+        elements.pauseWorkoutBtn.textContent = 'PAUSE';
+        elements.pauseWorkoutBtn.classList.remove('gradient-bg');
+        if (!workoutState.isBreak) {
+            startAudio();
+        }
+    }
+}
+
+// End workout early
+export function endWorkout() {
+    // Confirm before ending
+    if (confirm('Are you sure you want to end this workout?')) {
+        completeWorkout();
+    }
 }
 
 // Update the workout timer
@@ -71,11 +108,11 @@ function updateWorkoutTimer() {
             elements.currentStatus.textContent = 'Round';
             elements.currentRound.textContent = `${workoutState.currentRound}/${workoutConfig.rounds}`;
             updateRoundIndicators();
-            updateWorkoutFocus();
-            updateCoachMessage('roundStart');
+            updateWorkoutFocus(workoutContent);
+            updateCoachMessage('roundStart', coachMessages);
             
-            // Start beat for round
-            startBeat();
+            // Start audio for round
+            startAudio();
         } else {
             // Round is over, start break (unless it's the last round)
             if (workoutState.currentRound === workoutConfig.rounds) {
@@ -86,21 +123,21 @@ function updateWorkoutTimer() {
             workoutState.isBreak = true;
             workoutState.timeRemaining = workoutConfig.breakLength;
             elements.currentStatus.textContent = 'Break';
-            updateCoachMessage('roundEnd');
+            updateCoachMessage('roundEnd', coachMessages);
             
-            // Stop beat during break
-            stopBeat();
+            // Stop audio during break
+            stopAudio(elements);
         }
     } else {
         // During workout, periodically update coach messages
         if (!workoutState.isBreak && workoutState.timeRemaining % 15 === 0) {
             const messageType = Math.random() > 0.5 ? 'encouragement' : 'technique';
-            updateCoachMessage(messageType);
+            updateCoachMessage(messageType, coachMessages);
         }
         
         // During break, update break messages
         if (workoutState.isBreak && workoutState.timeRemaining % 10 === 0) {
-            updateCoachMessage('breakTime');
+            updateCoachMessage('breakTime', coachMessages);
         }
         
         // Last 3 seconds of break, countdown
@@ -110,42 +147,17 @@ function updateWorkoutTimer() {
     }
 }
 
-// Pause or resume workout
-function togglePauseWorkout() {
-    workoutState.isPaused = !workoutState.isPaused;
-    
-    if (workoutState.isPaused) {
-        elements.pauseWorkoutBtn.textContent = 'RESUME';
-        elements.pauseWorkoutBtn.classList.add('gradient-bg');
-        stopBeat();
-    } else {
-        elements.pauseWorkoutBtn.textContent = 'PAUSE';
-        elements.pauseWorkoutBtn.classList.remove('gradient-bg');
-        if (!workoutState.isBreak) {
-            startBeat();
-        }
-    }
-}
-
-// End workout early
-function endWorkout() {
-    // Confirm before ending
-    if (confirm('Are you sure you want to end this workout?')) {
-        completeWorkout();
-    }
-}
-
 // Complete workout
 function completeWorkout() {
     // Stop the timer
     clearInterval(workoutState.interval);
     workoutState.isRunning = false;
     
-    // Stop the beat
-    stopBeat();
+    // Stop the audio
+    stopAudio(elements);
     
     // Show completion message
-    updateCoachMessage('workoutComplete');
+    updateCoachMessage('workoutComplete', coachMessages);
     
     // Switch to completed section
     setTimeout(() => {
@@ -158,22 +170,4 @@ function completeWorkout() {
         elements.summaryLevel.textContent = workoutConfig.difficulty.charAt(0).toUpperCase() + workoutConfig.difficulty.slice(1);
         elements.summaryType.textContent = workoutConfig.workoutType.charAt(0).toUpperCase() + workoutConfig.workoutType.slice(1);
     }, 2000);
-}
-
-// Start a new workout
-function newWorkout() {
-    elements.completedSection.classList.add('hidden');
-    elements.configSection.classList.remove('hidden');
-}
-
-// Export module
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { 
-        startWorkout,
-        updateWorkoutTimer,
-        togglePauseWorkout,
-        endWorkout,
-        completeWorkout,
-        newWorkout
-    };
 }

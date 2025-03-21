@@ -1,148 +1,62 @@
 /**
  * HeavyHITR - Audio Module
  * Handles audio generation and playback
+ * @author danweboptic
+ * @lastUpdated 2025-03-21 11:48:06
  */
-
-// Audio Context for workout sounds
-let audioContext;
-let audioInitialized = false;
-let beatInterval;
-let oscillator;
-let gainNode;
+import { workoutConfig, musicSettings, workoutState, musicTracks } from './settings.js';
+import { saveMusicSettings } from './config.js';
 
 // Background music using Howler.js
 let backgroundMusic = null;
 let currentMusicTrack = null;
+let audioInitialized = false;
 
-// Music tracks collection
-const musicTracks = {
-    energetic: [
-        { src: 'audio/energetic_beat_1.mp3', title: 'Energetic Beat 1' },
-        { src: 'audio/energetic_beat_2.mp3', title: 'Energetic Beat 2' }
-    ],
-    relaxed: [
-        { src: 'audio/relaxed_beat_1.mp3', title: 'Relaxed Beat 1' },
-        { src: 'audio/relaxed_beat_2.mp3', title: 'Relaxed Beat 2' }
-    ],
-    intense: [
-        { src: 'audio/intense_beat_1.mp3', title: 'Intense Beat 1' },
-        { src: 'audio/intense_beat_2.mp3', title: 'Intense Beat 2' }
-    ]
-};
-
-// Default music settings
-const musicSettings = {
-    volume: 0.4,
-    enabled: true,
-    category: 'energetic'
-};
-
-// Initialize Audio Context
-function initAudio() {
+// Initialize Audio
+export function initAudio(elements) {
     if (audioInitialized) return;
-
+    
     try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        gainNode = audioContext.createGain();
-        gainNode.gain.value = 0.3;
-        gainNode.connect(audioContext.destination);
+        // No longer creating audio context since we're removing beat generation
         audioInitialized = true;
-        elements.audioIndicator.classList.remove('hidden');
-
-        // Load user music preferences if available
-        loadMusicSettings();
+        
+        // Just for visual feedback that audio is enabled
+        if (elements && elements.audioIndicator) {
+            elements.audioIndicator.classList.remove('hidden');
+        }
     } catch (e) {
-        console.error('Web Audio API not supported:', e);
+        console.error('Audio initialization failed:', e);
     }
 }
 
-// Generate beat sound
-function startBeat() {
-    if (!audioInitialized) return;
-
-    const bpmRange = workoutConfig.bpmRanges[workoutConfig.difficulty];
-    const bpm = Math.floor(Math.random() * (bpmRange.max - bpmRange.min + 1)) + bpmRange.min;
-    const beatMs = 60000 / bpm;  // Use a different variable name to avoid conflict
-
-    let lastBeatTime = 0;
-
-    // Clear existing interval if any
-    if (beatInterval) {
-        clearInterval(beatInterval);
-    }
-
-    // Set new beat interval
-    beatInterval = setInterval(() => {
-        const now = audioContext.currentTime;
-
-        // Only play if enough time has passed (avoiding rapid-fire beats)
-        if (now - lastBeatTime > 0.1) {
-            // Create and configure oscillator
-            oscillator = audioContext.createOscillator();
-            oscillator.type = 'sine';
-            oscillator.frequency.value = 330;
-
-            // Create and configure gain node for this beat
-            const beatGain = audioContext.createGain();
-            beatGain.gain.value = 0.2;
-
-            // Connect nodes
-            oscillator.connect(beatGain);
-            beatGain.connect(gainNode);
-
-            // Schedule envelope
-            const startTime = now;
-            const stopTime = startTime + 0.1;
-
-            beatGain.gain.setValueAtTime(0.2, startTime);
-            beatGain.gain.exponentialRampToValueAtTime(0.001, stopTime);
-
-            // Start and stop oscillator
-            oscillator.start(startTime);
-            oscillator.stop(stopTime);
-
-            lastBeatTime = now;
-        }
-    }, beatMs);
-
+// Start music if enabled
+export function startAudio() {
     // Start background music if enabled
     if (musicSettings.enabled) {
         startBackgroundMusic();
     }
 }
 
-// Stop beat sound
-function stopBeat() {
-    if (beatInterval) {
-        clearInterval(beatInterval);
-        beatInterval = null;
-    }
-
-    if (oscillator) {
-        try {
-            oscillator.stop();
-            oscillator.disconnect();
-        } catch (e) {
-            // Handle potential errors when stopping oscillator
-        }
-        oscillator = null;
-    }
-
+// Stop all audio
+export function stopAudio(elements) {
     // Stop background music
     stopBackgroundMusic();
-
-    elements.audioIndicator.classList.add('hidden');
+    
+    // Hide audio indicator
+    if (elements && elements.audioIndicator) {
+        elements.audioIndicator.classList.add('hidden');
+    }
 }
 
 // Start background music
 function startBackgroundMusic() {
     // Stop any existing music
     stopBackgroundMusic();
-
+    
     // Select a track based on difficulty or workout type
     let category = musicSettings.category;
-
-    // Alternatively, match music to workout difficulty
+    
+    // Match music to workout difficulty
     if (workoutConfig.difficulty === 'beginner') {
         category = 'relaxed';
     } else if (workoutConfig.difficulty === 'advanced') {
@@ -150,13 +64,13 @@ function startBackgroundMusic() {
     } else {
         category = 'energetic';
     }
-
+    
     // Get available tracks in the selected category
     const availableTracks = musicTracks[category] || musicTracks.energetic;
-
+    
     // Randomly select a track
     const selectedTrack = availableTracks[Math.floor(Math.random() * availableTracks.length)];
-
+    
     // Create a new Howl instance for the background music
     backgroundMusic = new Howl({
         src: [selectedTrack.src],
@@ -169,7 +83,7 @@ function startBackgroundMusic() {
         onplay: function() {
             currentMusicTrack = selectedTrack;
             console.log(`Playing: ${selectedTrack.title}`);
-
+            
             // Update music track display
             updateMusicTrackDisplay();
         },
@@ -177,7 +91,7 @@ function startBackgroundMusic() {
             console.error('Music loading error:', err);
         }
     });
-
+    
     // Start playing
     backgroundMusic.play();
 }
@@ -186,10 +100,17 @@ function startBackgroundMusic() {
 function updateMusicTrackDisplay() {
     const musicTrackInfoDiv = document.getElementById('music-track-info');
     const currentTrackNameSpan = document.getElementById('current-track-name');
-
-    if (musicTrackInfoDiv && currentTrackNameSpan && currentMusicTrack) {
+    
+    if (musicTrackInfoDiv && currentTrackNameSpan) {
+        // Always show the music controls during workout
         musicTrackInfoDiv.classList.remove('hidden');
-        currentTrackNameSpan.textContent = currentMusicTrack.title;
+        
+        // Update track name if we have a track, otherwise show status
+        if (currentMusicTrack) {
+            currentTrackNameSpan.textContent = currentMusicTrack.title;
+        } else {
+            currentTrackNameSpan.textContent = musicSettings.enabled ? "Ready to play" : "Music off";
+        }
     }
 }
 
@@ -200,69 +121,45 @@ function stopBackgroundMusic() {
         backgroundMusic.unload();
         backgroundMusic = null;
         currentMusicTrack = null;
-
-        // Hide music track info
-        const musicTrackInfoDiv = document.getElementById('music-track-info');
-        if (musicTrackInfoDiv) {
-            musicTrackInfoDiv.classList.add('hidden');
-        }
+        
+        // Update the music track info to show status rather than hiding it
+        updateMusicTrackDisplay();
     }
 }
 
 // Toggle background music
-function toggleBackgroundMusic() {
+export function toggleBackgroundMusic() {
     musicSettings.enabled = !musicSettings.enabled;
-
+    
     if (musicSettings.enabled && workoutState.isRunning && !workoutState.isPaused) {
         startBackgroundMusic();
     } else if (!musicSettings.enabled) {
         stopBackgroundMusic();
     }
-
+    
+    // Always update the music track display, even if music is off
+    updateMusicTrackDisplay();
+    
     // Save the new setting
     saveMusicSettings();
-
+    
     return musicSettings.enabled;
 }
 
 // Set music volume
-function setMusicVolume(volume) {
+export function setMusicVolume(volume) {
     musicSettings.volume = volume;
-
+    
     if (backgroundMusic) {
         backgroundMusic.volume(volume);
     }
-
+    
     // Save the new setting
     saveMusicSettings();
 }
 
-// Save music settings to localStorage
-function saveMusicSettings() {
-    try {
-        localStorage.setItem('heavyhitr-music-settings', JSON.stringify(musicSettings));
-    } catch (e) {
-        console.error('Could not save music settings:', e);
-    }
-}
-
-// Load music settings from localStorage
-function loadMusicSettings() {
-    try {
-        const saved = localStorage.getItem('heavyhitr-music-settings');
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            musicSettings.volume = parsed.volume !== undefined ? parsed.volume : 0.4;
-            musicSettings.enabled = parsed.enabled !== undefined ? parsed.enabled : true;
-            musicSettings.category = parsed.category || 'energetic';
-        }
-    } catch (e) {
-        console.error('Could not load music settings:', e);
-    }
-}
-
 // Get current music info
-function getCurrentMusicInfo() {
+export function getCurrentMusicInfo() {
     return {
         playing: !!backgroundMusic && !backgroundMusic.paused(),
         track: currentMusicTrack,
@@ -271,71 +168,63 @@ function getCurrentMusicInfo() {
 }
 
 // Set up music controls
-function setupMusicControls() {
+export function setupMusicControls() {
     // Music control elements
     const musicToggleBtn = document.getElementById('toggle-music');
     const musicStatusText = document.getElementById('music-status');
     const musicVolumeSlider = document.getElementById('music-volume');
     const workoutMusicToggleBtn = document.getElementById('workout-toggle-music');
     const workoutMusicStatusText = document.getElementById('workout-music-status');
-
+    
     // Load music settings
     const musicInfo = getCurrentMusicInfo();
-
+    
     // Set initial music control states
     if (musicVolumeSlider) {
         musicVolumeSlider.value = musicInfo.settings.volume;
     }
-
+    
     if (musicStatusText) {
         musicStatusText.textContent = musicInfo.settings.enabled ? 'ON' : 'OFF';
     }
-
+    
     if (workoutMusicStatusText) {
         workoutMusicStatusText.textContent = musicInfo.settings.enabled ? 'ON' : 'OFF';
     }
-
+    
     // Music toggle event on setup screen
     if (musicToggleBtn) {
         musicToggleBtn.addEventListener('click', function() {
             const isEnabled = toggleBackgroundMusic();
             musicStatusText.textContent = isEnabled ? 'ON' : 'OFF';
-
+            
             if (workoutMusicStatusText) {
                 workoutMusicStatusText.textContent = isEnabled ? 'ON' : 'OFF';
             }
         });
     }
-
+    
     // Music toggle during workout
     if (workoutMusicToggleBtn) {
         workoutMusicToggleBtn.addEventListener('click', function() {
             const isEnabled = toggleBackgroundMusic();
             workoutMusicStatusText.textContent = isEnabled ? 'ON' : 'OFF';
-
+            
             if (musicStatusText) {
                 musicStatusText.textContent = isEnabled ? 'ON' : 'OFF';
             }
         });
     }
-
+    
     // Music volume event
     if (musicVolumeSlider) {
         musicVolumeSlider.addEventListener('input', function() {
             setMusicVolume(parseFloat(this.value));
         });
     }
-}
-
-// Export module
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        initAudio,
-        startBeat,
-        stopBeat,
-        toggleBackgroundMusic,
-        setMusicVolume,
-        getCurrentMusicInfo,
-        setupMusicControls
-    };
+    
+    // Ensure music track info is visible during workout if we're in workout mode
+    if (workoutState && workoutState.isRunning) {
+        updateMusicTrackDisplay();
+    }
 }

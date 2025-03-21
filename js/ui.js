@@ -1,10 +1,16 @@
 /**
  * HeavyHITR - UI Module
- * Handles user interface interactions and updates
+ * Handles UI updates and interactions
+ * @author danweboptic
+ * @lastUpdated 2025-03-21 11:48:06
  */
+import { workoutConfig, workoutState } from './settings.js';
+import { saveSettings } from './config.js';
+import { initAudio } from './audio.js';
+import { startWorkout, pauseWorkout, endWorkout, formatTime } from './workout.js';
 
-// DOM Elements
-const elements = {
+// DOM Elements collection
+export const elements = {
     // Configuration elements
     configSection: document.getElementById('config-section'),
     roundsSlider: document.getElementById('rounds'),
@@ -41,15 +47,100 @@ const elements = {
     newWorkoutBtn: document.getElementById('new-workout')
 };
 
-// Format time (seconds) to MM:SS
-function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+// Initialize UI configuration
+export function initUIConfig() {
+    // Set initial values based on loaded settings
+    elements.roundsSlider.value = workoutConfig.rounds;
+    elements.roundsValue.textContent = workoutConfig.rounds;
+    
+    elements.roundLengthSlider.value = workoutConfig.roundLength;
+    elements.roundLengthValue.textContent = formatTime(workoutConfig.roundLength);
+    
+    elements.breakLengthSlider.value = workoutConfig.breakLength;
+    elements.breakLengthValue.textContent = formatTime(workoutConfig.breakLength);
+    
+    // Set active buttons
+    elements.difficultyBtns.forEach(btn => {
+        btn.classList.remove('active', 'gradient-bg');
+        if (btn.dataset.level === workoutConfig.difficulty) {
+            btn.classList.add('active', 'gradient-bg');
+        }
+    });
+    
+    elements.workoutTypeBtns.forEach(btn => {
+        btn.classList.remove('active', 'gradient-bg');
+        if (btn.dataset.type === workoutConfig.workoutType) {
+            btn.classList.add('active', 'gradient-bg');
+        }
+    });
+}
+
+// Set up UI event listeners
+export function setupUIEventListeners() {
+    // Set up configuration sliders
+    elements.roundsSlider.addEventListener('input', function() {
+        workoutConfig.rounds = parseInt(this.value);
+        elements.roundsValue.textContent = this.value;
+        saveSettings();
+    });
+    
+    elements.roundLengthSlider.addEventListener('input', function() {
+        workoutConfig.roundLength = parseInt(this.value);
+        elements.roundLengthValue.textContent = formatTime(this.value);
+        saveSettings();
+    });
+    
+    elements.breakLengthSlider.addEventListener('input', function() {
+        workoutConfig.breakLength = parseInt(this.value);
+        elements.breakLengthValue.textContent = formatTime(this.value);
+        saveSettings();
+    });
+    
+    // Set up difficulty buttons
+    elements.difficultyBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            elements.difficultyBtns.forEach(b => b.classList.remove('active', 'gradient-bg'));
+            this.classList.add('active', 'gradient-bg');
+            workoutConfig.difficulty = this.dataset.level;
+            saveSettings();
+        });
+    });
+    
+    // Set up workout type buttons
+    elements.workoutTypeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            elements.workoutTypeBtns.forEach(b => b.classList.remove('active', 'gradient-bg'));
+            this.classList.add('active', 'gradient-bg');
+            workoutConfig.workoutType = this.dataset.type;
+            saveSettings();
+        });
+    });
+    
+    // Set up button event listeners
+    elements.startWorkoutBtn.addEventListener('click', () => {
+        // Initialize audio on user gesture
+        initAudio(elements);
+        startWorkout(elements);
+    });
+    
+    elements.pauseWorkoutBtn.addEventListener('click', () => pauseWorkout(elements));
+    elements.endWorkoutBtn.addEventListener('click', endWorkout);
+    elements.newWorkoutBtn.addEventListener('click', () => {
+        elements.completedSection.classList.add('hidden');
+        elements.configSection.classList.remove('hidden');
+    });
+}
+
+// Update coach message
+export function updateCoachMessage(messageType, coachMessages) {
+    const message = getRandomItem(coachMessages[messageType]);
+    elements.coachMessage.textContent = message;
+    elements.coachMessage.classList.add('slide-in');
+    setTimeout(() => elements.coachMessage.classList.remove('slide-in'), 500);
 }
 
 // Update workout focus for current round
-function updateWorkoutFocus() {
+export function updateWorkoutFocus(workoutContent) {
     const content = workoutContent[workoutConfig.workoutType];
     const roundIndex = (workoutState.currentRound - 1) % content.length;
     const focus = content[roundIndex];
@@ -59,7 +150,7 @@ function updateWorkoutFocus() {
 }
 
 // Update round indicators
-function updateRoundIndicators() {
+export function updateRoundIndicators() {
     elements.roundIndicators.innerHTML = '';
     
     for (let i = 1; i <= workoutConfig.rounds; i++) {
@@ -76,16 +167,8 @@ function updateRoundIndicators() {
     }
 }
 
-// Update coach message
-function updateCoachMessage(messageType) {
-    const message = getRandomItem(coachMessages[messageType]);
-    elements.coachMessage.textContent = message;
-    elements.coachMessage.classList.add('slide-in');
-    setTimeout(() => elements.coachMessage.classList.remove('slide-in'), 500);
-}
-
 // Update timer display
-function updateTimerDisplay() {
+export function updateTimerDisplay() {
     elements.timerDisplay.textContent = formatTime(workoutState.timeRemaining);
     
     // Update progress bar
@@ -102,88 +185,6 @@ function updateTimerDisplay() {
 }
 
 // Get random item from array
-function getRandomItem(array) {
+export function getRandomItem(array) {
     return array[Math.floor(Math.random() * array.length)];
-}
-
-// Initialize UI configuration
-function initUIConfig() {
-    // Apply settings to UI
-    elements.roundsSlider.value = workoutConfig.rounds;
-    elements.roundsValue.textContent = workoutConfig.rounds;
-    
-    elements.roundLengthSlider.value = workoutConfig.roundLength;
-    elements.roundLengthValue.textContent = formatTime(workoutConfig.roundLength);
-    
-    elements.breakLengthSlider.value = workoutConfig.breakLength;
-    elements.breakLengthValue.textContent = formatTime(workoutConfig.breakLength);
-    
-    // Set active buttons
-    document.querySelector(`.difficulty-btn[data-level="${workoutConfig.difficulty}"]`).classList.add('active', 'gradient-bg');
-    document.querySelector(`.workout-type-btn[data-type="${workoutConfig.workoutType}"]`).classList.add('active', 'gradient-bg');
-}
-
-// Setup UI event listeners
-function setupUIEventListeners() {
-    // Round slider
-    elements.roundsSlider.addEventListener('input', function() {
-        workoutConfig.rounds = parseInt(this.value);
-        elements.roundsValue.textContent = this.value;
-        saveSettings();
-    });
-    
-    // Round length slider
-    elements.roundLengthSlider.addEventListener('input', function() {
-        workoutConfig.roundLength = parseInt(this.value);
-        elements.roundLengthValue.textContent = formatTime(this.value);
-        saveSettings();
-    });
-    
-    // Break length slider
-    elements.breakLengthSlider.addEventListener('input', function() {
-        workoutConfig.breakLength = parseInt(this.value);
-        elements.breakLengthValue.textContent = formatTime(this.value);
-        saveSettings();
-    });
-    
-    // Difficulty buttons
-    elements.difficultyBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            elements.difficultyBtns.forEach(b => b.classList.remove('active', 'gradient-bg'));
-            this.classList.add('active', 'gradient-bg');
-            workoutConfig.difficulty = this.dataset.level;
-            saveSettings();
-        });
-    });
-    
-    // Workout type buttons
-    elements.workoutTypeBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            elements.workoutTypeBtns.forEach(b => b.classList.remove('active', 'gradient-bg'));
-            this.classList.add('active', 'gradient-bg');
-            workoutConfig.workoutType = this.dataset.type;
-            saveSettings();
-        });
-    });
-    
-    // Main app buttons
-    elements.startWorkoutBtn.addEventListener('click', startWorkout);
-    elements.pauseWorkoutBtn.addEventListener('click', togglePauseWorkout);
-    elements.endWorkoutBtn.addEventListener('click', endWorkout);
-    elements.newWorkoutBtn.addEventListener('click', newWorkout);
-}
-
-// Export module
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { 
-        elements,
-        formatTime,
-        updateWorkoutFocus,
-        updateRoundIndicators,
-        updateCoachMessage,
-        updateTimerDisplay,
-        getRandomItem,
-        initUIConfig,
-        setupUIEventListeners
-    };
 }

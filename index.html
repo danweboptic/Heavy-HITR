@@ -3,91 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com">
     <title>HeavyHITR - Boxing Workout App</title>
-    
+
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#121212">
     <meta name="description" content="Boxing heavy bag workout timer and trainer">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    
+
     <!-- External CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
-    
+
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
 </head>
 <body class="dark">
     <div class="container mx-auto px-4 py-6 max-w-md">
         <!-- App Header -->
-        <div class="flex items-center justify-center mb-8">
-            <div class="text-center">
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex-1"></div>
+            <div class="text-center flex-1">
                 <h1 class="text-3xl font-bold gradient-text">HeavyHITR</h1>
                 <p class="text-sm text-gray-400">Boxing Heavy-Bag Workouts</p>
+            </div>
+            <div class="flex-1 flex justify-end">
+                <label class="theme-switch">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="theme-slider"></span>
+                </label>
             </div>
         </div>
 
         <!-- Workout Configuration Section -->
-        <div id="config-section" class="bg-gray-900 rounded-lg p-5 shadow-lg mb-6">
-            <h2 class="text-xl font-bold mb-4">Workout Setup</h2>
-            
+        <div id="config-section" class="card p-6 mb-6">
+            <h2 class="text-xl font-bold mb-5 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-pink-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                </svg>
+                Workout Setup
+            </h2>
+
             <!-- Number of Rounds -->
-            <div class="mb-4">
+            <div class="mb-6">
                 <div class="flex justify-between mb-1">
-                    <label class="text-sm">Number of Rounds</label>
+                    <label class="text-sm font-medium">Number of Rounds</label>
                     <span id="rounds-value" class="text-sm font-bold gradient-text">6</span>
                 </div>
                 <input type="range" id="rounds" class="slider" min="1" max="12" value="6">
             </div>
-            
+
             <!-- Round Duration -->
-            <div class="mb-4">
+            <div class="mb-6">
                 <div class="flex justify-between mb-1">
-                    <label class="text-sm">Round Length</label>
+                    <label class="text-sm font-medium">Round Length</label>
                     <span id="round-length-value" class="text-sm font-bold gradient-text">1:00</span>
                 </div>
                 <input type="range" id="round-length" class="slider" min="30" max="180" step="10" value="60">
             </div>
-            
+
             <!-- Break Duration -->
-            <div class="mb-4">
+            <div class="mb-6">
                 <div class="flex justify-between mb-1">
-                    <label class="text-sm">Break Length</label>
+                    <label class="text-sm font-medium">Break Length</label>
                     <span id="break-length-value" class="text-sm font-bold gradient-text">0:20</span>
                 </div>
                 <input type="range" id="break-length" class="slider" min="10" max="60" step="5" value="20">
             </div>
-            
+
             <!-- Difficulty Level -->
-            <div class="mb-4">
-                <label class="text-sm block mb-2">Difficulty Level</label>
+            <div class="mb-6">
+                <label class="text-sm font-medium block mb-2">Difficulty Level</label>
                 <div class="grid grid-cols-3 gap-2">
                     <button class="difficulty-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-level="beginner">Beginner</button>
                     <button class="difficulty-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium active" data-level="intermediate">Intermediate</button>
                     <button class="difficulty-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-level="advanced">Advanced</button>
                 </div>
             </div>
-            
+
             <!-- Workout Type -->
-            <div class="mb-4">
-                <label class="text-sm block mb-2">Workout Type</label>
+            <div class="mb-6">
+                <label class="text-sm font-medium block mb-2">Workout Type</label>
                 <div class="workout-type-selector">
-                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium active" data-type="punching">Punching</button>
-                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-type="footwork">Footwork</button>
-                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-type="defense">Defense</button>
-                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-type="conditioning">Conditioning</button>
+                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium active" data-type="punching">
+                        <span class="flex items-center justify-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Punching
+                        </span>
+                    </button>
+                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-type="footwork">
+                        <span class="flex items-center justify-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7l4-4m0 0l4 4m-4-4v18" />
+                            </svg>
+                            Footwork
+                        </span>
+                    </button>
+                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-type="defense">
+                        <span class="flex items-center justify-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016zM12 9v2m0 4h.01" />
+                            </svg>
+                            Defense
+                        </span>
+                    </button>
+                    <button class="workout-type-btn btn py-2 px-3 rounded-md bg-gray-800 text-sm font-medium" data-type="conditioning">
+                        <span class="flex items-center justify-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            Conditioning
+                        </span>
+                    </button>
                 </div>
             </div>
 
             <!-- Music Controls Section -->
-            <div class="mb-4">
-                <div class="flex items-center justify-between mb-1">
-                    <label class="text-sm">Background Music</label>
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-sm font-medium">Background Music</label>
                     <div class="flex items-center">
-                        <button id="toggle-music" class="p-2 rounded-md bg-gray-800 text-xs">
+                        <button id="toggle-music" class="p-2 rounded-md bg-gray-800 text-xs flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                            </svg>
                             <span id="music-status">ON</span>
                         </button>
                     </div>
@@ -99,18 +142,24 @@
             </div>
 
             <!-- Start Button -->
-            <button id="start-workout" class="btn w-full py-3 rounded-md font-bold text-white gradient-bg">
+            <button id="start-workout" class="btn w-full py-3 rounded-md font-bold text-white gradient-bg flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
                 START WORKOUT
             </button>
         </div>
 
         <!-- Workout Display Section (Initially Hidden) -->
         <div id="workout-section" class="hidden">
-            <div class="bg-gray-900 rounded-lg p-5 shadow-lg mb-6">
+            <div class="card p-6 mb-6">
                 <!-- Timer Display -->
-                <div class="text-center mb-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <div>
+                <div class="text-center mb-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-pink-500 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                            </svg>
                             <span id="current-status" class="text-sm text-gray-400">Round</span>
                             <span id="current-round" class="text-sm font-bold gradient-text ml-1">1/6</span>
                         </div>
@@ -121,15 +170,17 @@
                             <div class="audio-bar"></div>
                             <div class="audio-bar"></div>
                         </div>
-                        <div>
-                            <span class="text-sm text-gray-400">Level:</span>
+                        <div class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-pink-500 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M6 3a1 1 0 011-1h.01a1 1 0 010 2H7a1 1 0 01-1-1zm2 3a1 1 0 00-2 0v1a2 2 0 00-2 2v1a2 2 0 002 2h6a2 2 0 002-2v-1a2 2 0 00-2-2V6a1 1 0 10-2 0v1H8V6zm10 8a1 1 0 01-1 1H3a1 1 0 110-2h14a1 1 0 011 1z" clip-rule="evenodd" />
+                            </svg>
                             <span id="difficulty-display" class="text-sm font-bold gradient-text ml-1">Intermediate</span>
                         </div>
                     </div>
 
-                    <div id="timer-display" class="text-5xl font-bold mb-2 gradient-text">1:00</div>
+                    <div id="timer-display" class="text-6xl font-bold mb-3 gradient-text">1:00</div>
 
-                    <div id="progress-bar">
+                    <div id="progress-bar" class="mb-1">
                         <div id="progress-fill"></div>
                     </div>
                 </div>
@@ -140,33 +191,45 @@
                 </div>
 
                 <!-- Workout Type & Instructions -->
-                <div class="text-center mb-4">
-                    <h3 id="workout-focus" class="text-xl font-bold mb-1">Jab-Cross Combinations</h3>
+                <div class="text-center mb-5 bg-gray-800 rounded-lg p-4">
+                    <h3 id="workout-focus" class="text-xl font-bold mb-2 gradient-text">Jab-Cross Combinations</h3>
                     <p id="workout-instruction" class="text-sm text-gray-400">Focus on speed and accuracy</p>
                 </div>
 
                 <!-- Coach Messages -->
-                <div class="coach-message text-center mb-4">
+                <div class="coach-message text-center mb-5 bg-gray-800 rounded-lg p-4">
                     <div id="coach-message" class="text-md font-medium italic">Ready to begin!</div>
                 </div>
 
                 <!-- Music Track Display (if playing) -->
-                <div id="music-track-info" class="text-center mb-4 text-xs text-gray-400 hidden">
+                <div id="music-track-info" class="text-center mb-5 bg-gray-800 rounded-lg p-3 hidden">
                     <div class="flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-pink-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
+                        </svg>
                         <span>Now playing:</span>
-                        <span id="current-track-name">-</span>
-                        <button id="workout-toggle-music" class="p-1 px-2 rounded bg-gray-800">
+                        <span id="current-track-name" class="font-medium text-pink-400">-</span>
+                        <button id="workout-toggle-music" class="p-1 px-2 rounded bg-gray-700 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.536a5 5 0 010-7.072m12.728 0l-4.242 4.242a9 9 0 00-2.65-2.65l4.242-4.242a9 9 0 012.65 2.65zM6.343 6.343l-.707.707a9 9 0 00-.708.708m12.728 0l-4.242 4.242a9 9 0 00-2.65-2.65l4.242-4.242a9 9 0 012.65 2.65zM6.343 6.343l4.242 4.242a9 9 0 00-2.65 2.65L3.693 8.993a9 9 0 012.65-2.65z" />
+                            </svg>
                             <span id="workout-music-status">ON</span>
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Workout Controls -->
                 <div class="flex gap-3">
-                    <button id="pause-workout" class="btn flex-1 py-3 rounded-md font-bold text-white bg-gray-800">
+                    <button id="pause-workout" class="btn flex-1 py-3 rounded-md font-bold text-white bg-gray-800 flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
                         PAUSE
                     </button>
-                    <button id="end-workout" class="btn flex-1 py-3 rounded-md font-bold text-white bg-gray-700">
+                    <button id="end-workout" class="btn flex-1 py-3 rounded-md font-bold text-white bg-gray-700 flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+                        </svg>
                         END
                     </button>
                 </div>
@@ -175,43 +238,49 @@
 
         <!-- Completed Workout Section (Initially Hidden) -->
         <div id="completed-section" class="hidden">
-            <div class="bg-gray-900 rounded-lg p-5 shadow-lg mb-6 text-center">
+            <div class="card p-6 mb-6 text-center">
+                <div class="flex items-center justify-center mb-3">
+                    <div class="p-3 rounded-full bg-green-500 bg-opacity-20">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                </div>
+
                 <h2 class="text-2xl font-bold mb-2 gradient-text">Workout Complete!</h2>
-                <p class="text-md mb-4">Great job! You crushed it today.</p>
-                
-                <div class="mb-5">
-                    <div class="flex justify-between mb-1">
-                        <span>Total Rounds:</span>
+                <p class="text-md mb-6 text-gray-400">Great job! You crushed it today.</p>
+
+                <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-400">Total Rounds:</span>
                         <span id="summary-rounds" class="font-bold gradient-text">6</span>
                     </div>
-                    <div class="flex justify-between mb-1">
-                        <span>Total Workout Time:</span>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-400">Total Time:</span>
                         <span id="summary-time" class="font-bold gradient-text">7:20</span>
                     </div>
-                    <div class="flex justify-between mb-1">
-                        <span>Workout Level:</span>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-400">Level:</span>
                         <span id="summary-level" class="font-bold gradient-text">Intermediate</span>
                     </div>
-                    <div class="flex justify-between mb-1">
-                        <span>Workout Type:</span>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-400">Type:</span>
                         <span id="summary-type" class="font-bold gradient-text">Punching</span>
                     </div>
                 </div>
-                
-                <button id="new-workout" class="btn w-full py-3 rounded-md font-bold text-white gradient-bg">
+
+                <button id="new-workout" class="btn w-full py-3 rounded-md font-bold text-white gradient-bg flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                    </svg>
                     START NEW WORKOUT
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- App JS Files -->
-    <script src="js/data.js"></script>
-    <script src="js/config.js"></script>
-    <script src="js/audio.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/workout.js"></script>
-    <script src="js/app.js"></script>
+    <!-- App JS Files - using ES modules -->
+    <script type="module" src="js/app.js"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>
