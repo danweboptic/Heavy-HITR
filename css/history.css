@@ -1,0 +1,284 @@
+/**
+ * HeavyHITR - History Styles
+ * Styles for the workout history and stats
+ * @author danweboptic
+ * @lastUpdated 2025-03-21 15:11:32
+ */
+
+/* Activity Calendar Styles */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-day {
+  aspect-ratio: 1/1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  border-radius: 50%;
+  position: relative;
+}
+
+.calendar-day.has-workout {
+  background-color: rgba(117, 250, 194, 0.1);
+  color: var(--primary-color);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(117, 250, 194, 0.2);
+}
+
+.calendar-day.has-workout:hover {
+  background-color: rgba(117, 250, 194, 0.2);
+  transform: scale(1.05);
+}
+
+.calendar-day.today {
+  border: 2px solid var(--primary-color);
+}
+
+.workout-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: var(--primary-color);
+  color: var(--dark-bg);
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  font-size: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* Workout History Card Styles */
+.history-item {
+  display: flex;
+  align-items: center;
+  background-color: var(--dark-card);
+  border-radius: 1rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.history-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(6, 15, 31, 0.5);
+}
+
+.history-date {
+  min-width: 4.5rem;
+  font-size: 0.875rem;
+  color: var(--muted-text);
+}
+
+.history-workout {
+  flex: 1;
+}
+
+.history-workout-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.history-workout-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.detail-chip {
+  background-color: var(--dark-input);
+  color: var(--muted-text);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.history-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Modal Styles for Day View */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.modal.active {
+  opacity: 1;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(6, 15, 31, 0.8);
+}
+
+.modal-content {
+  position: relative;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  background-color: var(--dark-card);
+  border-radius: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(20px);
+  transition: transform 0.3s ease;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal.active .modal-content {
+  transform: translateY(0);
+}
+
+.modal-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid rgba(117, 250, 194, 0.1);
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.modal-body {
+  padding: 1.25rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.modal-workout-item {
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(117, 250, 194, 0.1);
+}
+
+.modal-workout-item:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.modal-workout-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.modal-workout-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.modal-workout-details {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.modal-workout-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-workout-stat .stat-label {
+  font-size: 0.75rem;
+  color: var(--muted-text);
+}
+
+.modal-workout-stat .stat-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.modal-workout-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(117, 250, 194, 0.1);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.repeat-workout-btn {
+  background-color: var(--dark-input);
+  color: var(--primary-color);
+  border: 1px solid rgba(117, 250, 194, 0.3);
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.repeat-workout-btn:hover {
+  background-color: rgba(117, 250, 194, 0.1);
+}
+
+#close-modal-btn {
+  background-color: var(--dark-input);
+  color: var(--light-text);
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#close-modal-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Stats Charts Styles */
+#stats-charts {
+  margin: 1.5rem 0;
+}
+
+.chart-header {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--primary-color);
+  text-align: center;
+}
+
+#activity-chart, #types-chart {
+  margin-bottom: 2rem;
+}
+
+/* Responsive Fixes for History */
+@media (max-width: 480px) {
+  .modal-workout-details {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

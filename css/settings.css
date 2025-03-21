@@ -1,0 +1,269 @@
+/**
+ * HeavyHITR - Settings Styles
+ * Styles for the settings page
+ * @author danweboptic
+ * @lastUpdated 2025-03-21 15:46:22
+ */
+
+.settings-section {
+  background-color: var(--dark-card);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.settings-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--primary-color);
+}
+
+.settings-sub-items {
+  padding-left: 1rem;
+  border-left: 2px solid rgba(117, 250, 194, 0.2);
+  margin: 0.5rem 0 1rem 0.5rem;
+}
+
+.settings-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(117, 250, 194, 0.1);
+}
+
+.settings-item:last-child {
+  border-bottom: none;
+}
+
+.settings-item-label {
+  font-size: 0.9375rem;
+  color: var(--light-text);
+}
+
+.settings-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  max-width: 200px;
+}
+
+.settings-slider {
+  -webkit-appearance: none;
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--dark-input);
+  outline: none;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  cursor: pointer;
+}
+
+.settings-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  border: none;
+  cursor: pointer;
+}
+
+.settings-select {
+  background-color: var(--dark-input);
+  color: var(--light-text);
+  border: 1px solid rgba(117, 250, 194, 0.2);
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2375fac2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem top 50%;
+  background-size: 0.65rem auto;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.settings-input {
+  background-color: var(--dark-input);
+  color: var(--light-text);
+  border: 1px solid rgba(117, 250, 194, 0.2);
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  width: 5rem;
+  text-align: center;
+}
+
+.settings-combined {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.settings-unit {
+  background-color: var(--dark-input);
+  color: var(--light-text);
+  border: 1px solid rgba(117, 250, 194, 0.2);
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  width: 3rem;
+  text-align: center;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2375fac2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.4rem top 50%;
+  background-size: 0.5rem auto;
+  cursor: pointer;
+}
+
+.settings-action-btn {
+  background-color: var(--dark-input);
+  color: var(--primary-color);
+  border: 1px solid rgba(117, 250, 194, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.settings-action-btn:hover {
+  background-color: rgba(117, 250, 194, 0.1);
+}
+
+.settings-danger-btn {
+  background-color: rgba(248, 109, 109, 0.2);
+  color: #F86D6D;
+  border: 1px solid rgba(248, 109, 109, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-danger-btn:hover {
+  background-color: rgba(248, 109, 109, 0.3);
+}
+
+.copyright {
+  font-size: 0.75rem;
+  color: var(--muted-text);
+  margin-top: 2rem;
+  text-align: center;
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+  position: relative;
+  width: 50px;
+  height: 24px;
+}
+
+.toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-label {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #3f4551;
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.toggle-label:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #cbd5e0;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+.toggle-input:checked + .toggle-label {
+  background-color: rgba(117, 250, 194, 0.6);
+}
+
+.toggle-input:checked + .toggle-label:before {
+  transform: translateX(26px);
+  background-color: var(--primary-color);
+}
+
+.toggle-input:focus + .toggle-label {
+  box-shadow: 0 0 1px var(--primary-color);
+}
+
+/* Form element focus states */
+.settings-input:focus,
+.settings-select:focus,
+.settings-unit:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(117, 250, 194, 0.2);
+}
+
+/* Responsive design for settings items */
+@media (max-width: 480px) {
+  .settings-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .settings-slider-container,
+  .settings-combined {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .settings-select {
+    width: 100%;
+  }
+}
+
+/* Style for about section */
+.about-section {
+  text-align: center;
+  padding: 1rem;
+}
+
+.about-links {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.about-link {
+  color: var(--primary-color);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.about-link:hover {
+  text-decoration: underline;
+}

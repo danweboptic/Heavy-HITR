@@ -2,22 +2,31 @@
  * HeavyHITR - Workout Module
  * Manages workout functionality and timing
  * @author danweboptic
- * @lastUpdated 2025-03-21 11:48:06
+ * @lastUpdated 2025-03-21 14:33:37
  */
 import { workoutConfig, workoutState } from './settings.js';
 import { startAudio, stopAudio } from './audio.js';
-import { updateCoachMessage, updateWorkoutFocus, updateRoundIndicators, updateTimerDisplay, elements } from './ui.js';
+import { 
+    showWorkoutOverlay, 
+    closeWorkoutOverlay, 
+    updateTimerDisplay, 
+    updateRoundIndicators, 
+    updateWorkoutFocus, 
+    updateCoachMessage, 
+    togglePauseUI, 
+    showWorkoutComplete 
+} from './ui.js';
 import { workoutContent, coachMessages } from './data.js';
+import { saveWorkoutHistory } from './history.js';
+import { formatTime } from './utils.js';
 
-// Format time (seconds) to MM:SS
-export function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+// Set up workout event handlers
+export function setupWorkoutHandlers() {
+    // Everything is handled in UI module by attaching event listeners
 }
 
-// Start the workout timer
-export function startWorkout(elements) {
+// Start workout
+export function startWorkout() {
     // Initialize workout state
     workoutState.isRunning = true;
     workoutState.isPaused = false;
@@ -25,19 +34,10 @@ export function startWorkout(elements) {
     workoutState.isBreak = false;
     workoutState.timeRemaining = workoutConfig.roundLength;
     workoutState.totalTime = 0;
+    workoutState.startTime = new Date();
     
-    // Setup UI
-    elements.configSection.classList.add('hidden');
-    elements.workoutSection.classList.remove('hidden');
-    elements.completedSection.classList.add('hidden');
-    
-    // Update round display
-    elements.currentRound.textContent = `${workoutState.currentRound}/${workoutConfig.rounds}`;
-    elements.currentStatus.textContent = 'Round';
-    elements.difficultyDisplay.textContent = workoutConfig.difficulty.charAt(0).toUpperCase() + workoutConfig.difficulty.slice(1);
-    
-    // Setup round indicators
-    updateRoundIndicators();
+    // Set up UI for workout
+    showWorkoutOverlay();
     
     // Set workout focus
     updateWorkoutFocus(workoutContent);
@@ -48,39 +48,53 @@ export function startWorkout(elements) {
     // Update timer display
     updateTimerDisplay();
     
-    // Start the audio
+    // Start audio
     startAudio();
     
-    // Start interval
+    // Start the timer interval
     workoutState.interval = setInterval(updateWorkoutTimer, 1000);
 }
 
 // Pause or resume workout
-export function pauseWorkout(elements) {
+export function pauseWorkout() {
     workoutState.isPaused = !workoutState.isPaused;
     
     if (workoutState.isPaused) {
-        elements.pauseWorkoutBtn.textContent = 'RESUME';
-        elements.pauseWorkoutBtn.classList.add('gradient-bg');
-        stopAudio(elements);
+        stopAudio();
     } else {
-        elements.pauseWorkoutBtn.textContent = 'PAUSE';
-        elements.pauseWorkoutBtn.classList.remove('gradient-bg');
+        // Only restart audio if not in break
         if (!workoutState.isBreak) {
             startAudio();
         }
     }
+    
+    // Update UI to reflect pause state
+    togglePauseUI(workoutState.isPaused);
 }
 
 // End workout early
 export function endWorkout() {
-    // Confirm before ending
-    if (confirm('Are you sure you want to end this workout?')) {
-        completeWorkout();
+    // Stop the timer
+    clearInterval(workoutState.interval);
+    workoutState.isRunning = false;
+    
+    // Stop audio
+    stopAudio();
+    
+    // Calculate total time spent
+    if (workoutState.startTime) {
+        const endTime = new Date();
+        workoutState.totalTime = Math.floor((endTime - workoutState.startTime) / 1000);
     }
+    
+    // Save workout history
+    saveWorkoutHistory();
+    
+    // Update UI
+    showWorkoutComplete();
 }
 
-// Update the workout timer
+// Update workout timer
 function updateWorkoutTimer() {
     if (workoutState.isPaused) return;
     
@@ -105,13 +119,11 @@ function updateWorkoutTimer() {
             
             // Setup for new round
             workoutState.timeRemaining = workoutConfig.roundLength;
-            elements.currentStatus.textContent = 'Round';
-            elements.currentRound.textContent = `${workoutState.currentRound}/${workoutConfig.rounds}`;
             updateRoundIndicators();
             updateWorkoutFocus(workoutContent);
             updateCoachMessage('roundStart', coachMessages);
             
-            // Start audio for round
+            // Start audio for new round
             startAudio();
         } else {
             // Round is over, start break (unless it's the last round)
@@ -122,11 +134,10 @@ function updateWorkoutTimer() {
             
             workoutState.isBreak = true;
             workoutState.timeRemaining = workoutConfig.breakLength;
-            elements.currentStatus.textContent = 'Break';
             updateCoachMessage('roundEnd', coachMessages);
             
             // Stop audio during break
-            stopAudio(elements);
+            stopAudio();
         }
     } else {
         // During workout, periodically update coach messages
@@ -142,7 +153,7 @@ function updateWorkoutTimer() {
         
         // Last 3 seconds of break, countdown
         if (workoutState.isBreak && workoutState.timeRemaining <= 3) {
-            elements.coachMessage.textContent = `Get ready! ${workoutState.timeRemaining}...`;
+            updateCoachMessage('countdown', coachMessages);
         }
     }
 }
@@ -154,20 +165,16 @@ function completeWorkout() {
     workoutState.isRunning = false;
     
     // Stop the audio
-    stopAudio(elements);
+    stopAudio();
+    
+    // Save workout history
+    saveWorkoutHistory();
     
     // Show completion message
     updateCoachMessage('workoutComplete', coachMessages);
     
-    // Switch to completed section
+    // Show workout complete screen after a short delay
     setTimeout(() => {
-        elements.workoutSection.classList.add('hidden');
-        elements.completedSection.classList.remove('hidden');
-        
-        // Update summary
-        elements.summaryRounds.textContent = workoutState.currentRound;
-        elements.summaryTime.textContent = formatTime(workoutState.totalTime);
-        elements.summaryLevel.textContent = workoutConfig.difficulty.charAt(0).toUpperCase() + workoutConfig.difficulty.slice(1);
-        elements.summaryType.textContent = workoutConfig.workoutType.charAt(0).toUpperCase() + workoutConfig.workoutType.slice(1);
-    }, 2000);
+        showWorkoutComplete();
+    }, 1500);
 }

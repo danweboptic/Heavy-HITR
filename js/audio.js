@@ -1,10 +1,10 @@
 /**
  * HeavyHITR - Audio Module
- * Handles audio generation and playback
+ * Handles audio playback
  * @author danweboptic
- * @lastUpdated 2025-03-21 11:48:06
+ * @lastUpdated 2025-03-21 14:33:37
  */
-import { workoutConfig, musicSettings, workoutState, musicTracks } from './settings.js';
+import { workoutConfig, musicSettings, workoutState } from './settings.js';
 import { saveMusicSettings } from './config.js';
 
 // Background music using Howler.js
@@ -12,18 +12,31 @@ let backgroundMusic = null;
 let currentMusicTrack = null;
 let audioInitialized = false;
 
+// Music tracks collection - would be populated from settings.js
+const musicTracks = {
+    energetic: [
+        { src: 'audio/energetic_beat_1.mp3', title: 'Energetic Beat 1' },
+        { src: 'audio/energetic_beat_2.mp3', title: 'Energetic Beat 2' }
+    ],
+    relaxed: [
+        { src: 'audio/relaxed_beat_1.mp3', title: 'Relaxed Beat 1' },
+        { src: 'audio/relaxed_beat_2.mp3', title: 'Relaxed Beat 2' }
+    ],
+    intense: [
+        { src: 'audio/intense_beat_1.mp3', title: 'Intense Beat 1' },
+        { src: 'audio/intense_beat_2.mp3', title: 'Intense Beat 2' }
+    ]
+};
+
 // Initialize Audio
-export function initAudio(elements) {
+export function initAudio() {
     if (audioInitialized) return;
     
     try {
-        // No longer creating audio context since we're removing beat generation
+        // Initialize audio system (no Web Audio API needed since we removed beat generation)
         audioInitialized = true;
         
-        // Just for visual feedback that audio is enabled
-        if (elements && elements.audioIndicator) {
-            elements.audioIndicator.classList.remove('hidden');
-        }
+        console.log('Audio system initialized');
     } catch (e) {
         console.error('Audio initialization failed:', e);
     }
@@ -38,14 +51,9 @@ export function startAudio() {
 }
 
 // Stop all audio
-export function stopAudio(elements) {
+export function stopAudio() {
     // Stop background music
     stopBackgroundMusic();
-    
-    // Hide audio indicator
-    if (elements && elements.audioIndicator) {
-        elements.audioIndicator.classList.add('hidden');
-    }
 }
 
 // Start background music
@@ -98,18 +106,14 @@ function startBackgroundMusic() {
 
 // Update music track display
 function updateMusicTrackDisplay() {
-    const musicTrackInfoDiv = document.getElementById('music-track-info');
-    const currentTrackNameSpan = document.getElementById('current-track-name');
+    const trackNameElement = document.getElementById('current-track-name');
     
-    if (musicTrackInfoDiv && currentTrackNameSpan) {
-        // Always show the music controls during workout
-        musicTrackInfoDiv.classList.remove('hidden');
-        
+    if (trackNameElement) {
         // Update track name if we have a track, otherwise show status
         if (currentMusicTrack) {
-            currentTrackNameSpan.textContent = currentMusicTrack.title;
+            trackNameElement.textContent = currentMusicTrack.title;
         } else {
-            currentTrackNameSpan.textContent = musicSettings.enabled ? "Ready to play" : "Music off";
+            trackNameElement.textContent = musicSettings.enabled ? "Ready to play" : "Music off";
         }
     }
 }
@@ -122,7 +126,7 @@ function stopBackgroundMusic() {
         backgroundMusic = null;
         currentMusicTrack = null;
         
-        // Update the music track info to show status rather than hiding it
+        // Update the music track info
         updateMusicTrackDisplay();
     }
 }
@@ -135,6 +139,17 @@ export function toggleBackgroundMusic() {
         startBackgroundMusic();
     } else if (!musicSettings.enabled) {
         stopBackgroundMusic();
+    }
+    
+    // Update music status text
+    const musicStatus = document.getElementById('music-status');
+    if (musicStatus) {
+        musicStatus.textContent = musicSettings.enabled ? 'ON' : 'OFF';
+    }
+    
+    const workoutMusicStatus = document.getElementById('workout-music-status');
+    if (workoutMusicStatus) {
+        workoutMusicStatus.textContent = musicSettings.enabled ? 'ON' : 'OFF';
     }
     
     // Always update the music track display, even if music is off
@@ -173,8 +188,6 @@ export function setupMusicControls() {
     const musicToggleBtn = document.getElementById('toggle-music');
     const musicStatusText = document.getElementById('music-status');
     const musicVolumeSlider = document.getElementById('music-volume');
-    const workoutMusicToggleBtn = document.getElementById('workout-toggle-music');
-    const workoutMusicStatusText = document.getElementById('workout-music-status');
     
     // Load music settings
     const musicInfo = getCurrentMusicInfo();
@@ -188,28 +201,10 @@ export function setupMusicControls() {
         musicStatusText.textContent = musicInfo.settings.enabled ? 'ON' : 'OFF';
     }
     
-    if (workoutMusicStatusText) {
-        workoutMusicStatusText.textContent = musicInfo.settings.enabled ? 'ON' : 'OFF';
-    }
-    
-    // Music toggle event on setup screen
+    // Music toggle event
     if (musicToggleBtn) {
         musicToggleBtn.addEventListener('click', function() {
             const isEnabled = toggleBackgroundMusic();
-            musicStatusText.textContent = isEnabled ? 'ON' : 'OFF';
-            
-            if (workoutMusicStatusText) {
-                workoutMusicStatusText.textContent = isEnabled ? 'ON' : 'OFF';
-            }
-        });
-    }
-    
-    // Music toggle during workout
-    if (workoutMusicToggleBtn) {
-        workoutMusicToggleBtn.addEventListener('click', function() {
-            const isEnabled = toggleBackgroundMusic();
-            workoutMusicStatusText.textContent = isEnabled ? 'ON' : 'OFF';
-            
             if (musicStatusText) {
                 musicStatusText.textContent = isEnabled ? 'ON' : 'OFF';
             }
@@ -221,10 +216,5 @@ export function setupMusicControls() {
         musicVolumeSlider.addEventListener('input', function() {
             setMusicVolume(parseFloat(this.value));
         });
-    }
-    
-    // Ensure music track info is visible during workout if we're in workout mode
-    if (workoutState && workoutState.isRunning) {
-        updateMusicTrackDisplay();
     }
 }
