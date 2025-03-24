@@ -2,51 +2,51 @@
  * HeavyHITR - Data Module
  * Contains static data for the application
  * @author danweboptic
- * @lastUpdated 2025-03-21 15:11:32
+ * @lastUpdated 2025-03-24 10:55:51
  */
 
 // Workout content by type
 export const workoutContent = {
-    punching: [
+    striking: [
         {
             focus: "Jab-Cross Combinations",
             instruction: "Focus on speed and accuracy with your punches",
-            image: "images/punching/jab-cross.png"
+            image: "images/striking/jab-cross.png"
         },
         {
             focus: "Hooks and Uppercuts",
             instruction: "Generate power from your hips and shoulders",
-            image: "images/punching/hooks-uppercuts.png"
+            image: "images/striking/hooks-uppercuts.png"
         },
         {
             focus: "Body Shots",
             instruction: "Keep your guard up while targeting the body",
-            image: "images/punching/body-shots.png"
+            image: "images/striking/body-shots.png"
         },
         {
             focus: "Speed Combinations",
             instruction: "Quick 3-4 punch combos with snap",
-            image: "images/punching/speed-combos.png"
+            image: "images/striking/speed-combos.png"
         },
         {
             focus: "Power Shots",
             instruction: "Full rotation for maximum impact",
-            image: "images/punching/power-shots.png"
+            image: "images/striking/power-shots.png"
         },
         {
-            focus: "Mixed Punching",
+            focus: "Mixed Striking",
             instruction: "Vary your targets and punch types",
-            image: "images/punching/mixed-punching.png"
+            image: "images/striking/mixed-striking.png"
         },
         {
             focus: "Double-Jab Lead",
             instruction: "Two quick jabs followed by power punches",
-            image: "images/punching/double-jab.png"
+            image: "images/striking/double-jab.png"
         },
         {
-            focus: "Counter Punching",
+            focus: "Counter Striking",
             instruction: "Defensive slip then counter with combinations",
-            image: "images/punching/counter-punch.png"
+            image: "images/striking/counter-strike.png"
         }
     ],
     footwork: [
@@ -126,7 +126,7 @@ export const workoutContent = {
     conditioning: [
         {
             focus: "Speed Bursts",
-            instruction: "Maximum punches for 20 seconds, then 10 seconds slower",
+            instruction: "Maximum strikes for 20 seconds, then 10 seconds slower",
             image: "images/conditioning/speed-bursts.png"
         },
         {
@@ -140,13 +140,13 @@ export const workoutContent = {
             image: "images/conditioning/power.png"
         },
         {
-            focus: "Punch-Out",
-            instruction: "Maximum punches with no break",
-            image: "images/conditioning/punch-out.png"
+            focus: "Strike-Out",
+            instruction: "Maximum strikes with no break",
+            image: "images/conditioning/strike-out.png"
         },
         {
             focus: "Active Recovery",
-            instruction: "Light movement and easy punches",
+            instruction: "Light movement and easy strikes",
             image: "images/conditioning/recovery.png"
         },
         {
@@ -199,15 +199,15 @@ export const coachMessages = {
     technique: [
         "Keep your guard up!",
         "Rotate those hips!",
-        "Snap those punches!",
+        "Snap those strikes!",
         "Stay on the balls of your feet!",
-        "Breathe with each punch!",
-        "Follow through with your punches!",
+        "Breathe with each strike!",
+        "Follow through with your strikes!",
         "Keep your chin tucked!",
-        "Pivot as you punch!",
+        "Pivot as you strike!",
         "Maintain proper distance!",
         "Protect your centerline!",
-        "Sharp, crisp punches!"
+        "Sharp, crisp strikes!"
     ],
     breakTime: [
         "Breathe deep and recover",
@@ -238,13 +238,13 @@ export const coachMessages = {
         "You smashed it! Session finished!",
         "Great workout! You should be proud!"
     ],
-    punchingTechnique: [
+    strikingTechnique: [
         "Rotate your hips on those power shots!",
-        "Snap your punches with speed!",
+        "Snap your strikes with speed!",
         "Remember to breathe with each combination!",
-        "Maintain your guard between punches!",
+        "Maintain your guard between strikes!",
         "Extend those jabs fully!",
-        "Connect with your knuckles properly!",
+        "Connect with proper form!",
         "Keep your shoulders relaxed!"
     ],
     footworkTechnique: [
@@ -289,9 +289,9 @@ export const voiceCoachMessages = {
         "Rest period. Breathe.",
         "Rest now. Prepare for round {next}."
     ],
-    encouragementPunching: [
-        "Good punching technique.",
-        "Keep those punches sharp.",
+    encouragementStriking: [
+        "Good striking technique.",
+        "Keep those strikes sharp.",
         "Great power, maintain your form.",
         "Speed and accuracy, you're doing well."
     ],
@@ -333,7 +333,7 @@ export const voiceCoachMessages = {
 
 // Exercise library to populate content
 export const exerciseLibrary = {
-    punching: [
+    striking: [
         { id: 'p1', name: 'Jab', difficulty: 'beginner' },
         { id: 'p2', name: 'Cross', difficulty: 'beginner' },
         { id: 'p3', name: 'Hook', difficulty: 'intermediate' },
@@ -375,15 +375,15 @@ export const exerciseLibrary = {
         { id: 'd10', name: 'Shell Defense', difficulty: 'intermediate' }
     ],
     conditioning: [
-        { id: 'c1', name: 'Speed Punches', difficulty: 'beginner' },
-        { id: 'c2', name: 'Power Punches', difficulty: 'intermediate' },
+        { id: 'c1', name: 'Speed Strikes', difficulty: 'beginner' },
+        { id: 'c2', name: 'Power Strikes', difficulty: 'intermediate' },
         { id: 'c3', name: 'Burn Out Drill', difficulty: 'advanced' },
-        { id: 'c4', name: 'Interval Punches', difficulty: 'intermediate' },
+        { id: 'c4', name: 'Interval Strikes', difficulty: 'intermediate' },
         { id: 'c5', name: 'Shuffling Drill', difficulty: 'beginner' },
         { id: 'c6', name: 'Shadow Boxing', difficulty: 'beginner' },
         { id: 'c7', name: 'Fast-Slow-Fast', difficulty: 'intermediate' },
         { id: 'c8', name: 'Pyramid Drill', difficulty: 'advanced' },
-        { id: 'c9', name: 'Tabata Punches', difficulty: 'advanced' },
+        { id: 'c9', name: 'Tabata Strikes', difficulty: 'advanced' },
         { id: 'c10', name: 'Active Recovery', difficulty: 'beginner' }
     ]
 };
