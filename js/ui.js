@@ -2,7 +2,7 @@
  * HeavyHITR - UI Module
  * Handles UI updates and interactions
  * @author danweboptic
- * @lastUpdated 2025-03-24 11:32:22
+ * @lastUpdated 2025-03-24 12:01:35
  */
 import { workoutConfig, workoutState } from './settings.js';
 import { saveSettings } from './config.js';
@@ -351,7 +351,7 @@ export function updateTimerDisplay() {
 
 // Update workout focus for current round
 export function updateWorkoutFocus(workoutContent) {
-    // Ensure we have valid workoutContent
+    // Make sure we have the workout content
     if (!workoutContent) {
         console.error('No workout content provided');
         return null;
@@ -361,6 +361,7 @@ export function updateWorkoutFocus(workoutContent) {
     const content = workoutContent[workoutConfig.workoutType];
     if (!content || !Array.isArray(content) || content.length === 0) {
         console.error(`No content found for workout type: ${workoutConfig.workoutType}`);
+
         // Return a default focus object to prevent undefined errors
         const defaultFocus = {
             focus: `${workoutConfig.workoutType.charAt(0).toUpperCase() + workoutConfig.workoutType.slice(1)} training`,
@@ -379,6 +380,9 @@ export function updateWorkoutFocus(workoutContent) {
     // Calculate the correct focus based on round number
     const roundIndex = (workoutState.currentRound - 1) % content.length;
     const focus = content[roundIndex];
+
+    // Debug log - this is crucial for troubleshooting
+    console.log(`Focus for round ${workoutState.currentRound} (${workoutConfig.workoutType}):`, focus);
 
     // Update UI elements if they exist
     if (elements.focusTitle && elements.focusInstruction && focus) {

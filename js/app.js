@@ -37,7 +37,15 @@ import {
 } from './voice.js';
 
 // Import workout content data
-import { workoutContent, coachMessages } from './data.js';
+// import { workoutContent, coachMessages } from './data.js';// Test the workout content structure for striking
+import { workoutContent } from './data.js';
+console.log("Checking workout content structure:");
+if (workoutContent && workoutContent.striking && Array.isArray(workoutContent.striking)) {
+    console.log("Striking content available:", workoutContent.striking.length, "exercises");
+    console.log("First striking exercise:", workoutContent.striking[0]);
+} else {
+    console.error("Missing or invalid striking content in data.js");
+}
 
 // Global variables
 const elements = {};

@@ -2,7 +2,7 @@
  * HeavyHITR - Audio Module
  * Handles audio playback
  * @author danweboptic
- * @lastUpdated 2025-03-24 11:25:32
+ * @lastUpdated 2025-03-24 12:01:35
  */
 import { workoutConfig, musicSettings, workoutState, appSettings } from './settings.js';
 import { saveMusicSettings } from './config.js';

@@ -2,7 +2,7 @@
  * HeavyHITR - Workout Module
  * Manages workout functionality and timing
  * @author danweboptic
- * @lastUpdated 2025-03-24 11:54:18
+ * @lastUpdated 2025-03-24 12:01:35
  */
 import { workoutConfig, workoutState } from './settings.js';
 import {
@@ -31,8 +31,7 @@ import {
     announceRoundEnd,
     announceBreakEnd,
     announceEncouragement,
-    announceCountdown,
-    announceFocus
+    announceCountdown
 } from './voice.js';
 
 // Set up workout event handlers
@@ -54,8 +53,9 @@ export function startWorkout() {
     // Set up UI for workout
     showWorkoutOverlay();
 
-    // Get the focus content for this round
+    // Get the focus content for this round - this should return the specific focus like "Jab-Cross Combinations"
     const focusContent = updateWorkoutFocus(workoutContent);
+    console.log("Initial focus content:", focusContent); // Debug log
 
     // Set initial coach message
     updateCoachMessage('roundStart', coachMessages);
@@ -72,16 +72,20 @@ export function startWorkout() {
     // Wait a moment before announcing for better audio experience
     setTimeout(() => {
         // Announce the round and focus directly
-        if (focusContent && focusContent.focus) {
-            // Just focus on announcing the workout focus, not just "Round X"
+        if (focusContent && typeof focusContent === 'object' && focusContent.focus) {
+            console.log("Announcing with focus:", focusContent.focus); // Debug log
+
+            // Announce the specific workout focus
             announceRoundStart(
                 workoutState.currentRound,
                 workoutConfig.rounds,
                 workoutConfig.workoutType,
-                focusContent.focus,
+                focusContent.focus, // This should be something like "Jab-Cross Combinations"
                 focusContent.instruction
             );
         } else {
+            console.log("Announcing without focus"); // Debug log
+
             // Fallback without focus content
             announceRoundStart(
                 workoutState.currentRound,
@@ -169,7 +173,11 @@ function updateWorkoutTimer() {
             // Setup for new round
             workoutState.timeRemaining = workoutConfig.roundLength;
             updateRoundIndicators();
+
+            // Get the focus content for this round - this should be the specific exercise
             const focusContent = updateWorkoutFocus(workoutContent);
+            console.log("New round focus content:", focusContent); // Debug log
+
             updateCoachMessage('roundStart', coachMessages);
 
             // Play round start sound
@@ -180,15 +188,20 @@ function updateWorkoutTimer() {
 
             // After a brief pause, announce the new round with focus
             setTimeout(() => {
-                if (focusContent && focusContent.focus) {
+                if (focusContent && typeof focusContent === 'object' && focusContent.focus) {
+                    console.log("Announcing with focus:", focusContent.focus); // Debug log
+
+                    // Announce the specific workout focus
                     announceRoundStart(
                         workoutState.currentRound,
                         workoutConfig.rounds,
                         workoutConfig.workoutType,
-                        focusContent.focus,
+                        focusContent.focus, // This should be something like "Jab-Cross Combinations"
                         focusContent.instruction
                     );
                 } else {
+                    console.log("Announcing without focus"); // Debug log
+
                     // Fallback without focus content
                     announceRoundStart(
                         workoutState.currentRound,

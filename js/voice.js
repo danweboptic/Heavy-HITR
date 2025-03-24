@@ -2,7 +2,7 @@
  * HeavyHITR - Voice Coach Module
  * Provides voice guidance using ResponsiveVoice.js
  * @author danweboptic
- * @lastUpdated 2025-03-24 11:53:56
+ * @lastUpdated 2025-03-24 12:01:35
  */
 
 import { voiceSettings } from './settings.js';
@@ -181,24 +181,26 @@ export function announceCountdown(number) {
 export function announceRoundStart(roundNumber, totalRounds, workoutType, focus, instruction) {
     if (!voiceSettings.enabled || !voiceSettings.instructions) return;
 
+    // Debug log to identify what values we have
+    console.log(`Announcing start - Round ${roundNumber}/${totalRounds}, Type: ${workoutType}, Focus: ${focus}, Instruction: ${instruction}`);
+
     // Handle case where focus or instruction might be undefined
     const safeWorkoutType = workoutType || 'workout';
-    const safeFocus = focus || '';
-
     let message;
 
-    // Prioritize announcing the workout focus rather than just the round number
-    if (safeFocus) {
-        // Announce the focus as the primary message
-        message = `Round ${roundNumber}. ${safeFocus}.`;
+    // ALWAYS announce the specific focus if we have it - this is key
+    if (focus && typeof focus === 'string' && focus.trim() !== '') {
+        message = `Round ${roundNumber} of ${totalRounds}. ${focus}.`;
 
-        // If instruction is available, add it after a brief pause (represented by period)
-        if (instruction) {
-            message += ` ${instruction}`;
+        // Add instruction if it's available and not too long
+        if (instruction && typeof instruction === 'string' && instruction.trim() !== '') {
+            if (instruction.length < 80) { // Only add if not too long
+                message += ` ${instruction}`;
+            }
         }
     } else {
-        // Fallback for minimal information
-        message = `Round ${roundNumber} of ${totalRounds}. ${safeWorkoutType} training.`;
+        // Only fall back to this if we don't have a focus
+        message = `Round ${roundNumber} of ${totalRounds}.`;
     }
 
     speak(message, 'high');
@@ -289,19 +291,6 @@ export function announceHalfway() {
     speak("Halfway point", 'medium');
 }
 
-// Announce focus (specifically for calling at the start of a round)
-export function announceFocus(focus, instruction) {
-    if (!voiceSettings.enabled || !voiceSettings.instructions) return;
-    if (!focus) return;
-
-    let message = focus;
-    if (instruction) {
-        message += `. ${instruction}`;
-    }
-
-    speak(message, 'high');
-}
-
 // Export all functions
 export default {
     initVoiceCoach,
@@ -314,6 +303,5 @@ export default {
     announceBreakEnd,
     announceEncouragement,
     announceHalfway,
-    announceFocus,
     testVoice
 };
