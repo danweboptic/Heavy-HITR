@@ -2,7 +2,7 @@
  * HeavyHITR - Voice Coach Module
  * Provides voice guidance using ResponsiveVoice.js
  * @author danweboptic
- * @lastUpdated 2025-03-24 11:45:32
+ * @lastUpdated 2025-03-24 11:53:56
  */
 
 import { voiceSettings } from './settings.js';
@@ -113,7 +113,7 @@ export function speak(text, priority = 'medium') {
         rate: 0.9, // Changed from 1.1 to 0.9 for a slower, clearer voice
         volume: voiceSettings.volume,
         onend: () => {
-            console.log(`Speech on end called: "${text}"`);
+            console.log(`Speech completed: "${text}"`);
             isSpeaking = false;
 
             // Check if there's more in the queue
@@ -177,33 +177,28 @@ export function announceCountdown(number) {
     speak(number.toString(), 'high');
 }
 
-// Round start announcement with exercise focus
+// Round start announcement with exercise focus - prioritizing the focus announcement
 export function announceRoundStart(roundNumber, totalRounds, workoutType, focus, instruction) {
     if (!voiceSettings.enabled || !voiceSettings.instructions) return;
 
     // Handle case where focus or instruction might be undefined
     const safeWorkoutType = workoutType || 'workout';
     const safeFocus = focus || '';
-    const safeInstruction = instruction || '';
 
     let message;
 
-    if (safeFocus && safeInstruction) {
-        // If we have complete information
-        const messages = [
-            `Round ${roundNumber} of ${totalRounds}. ${safeFocus}. ${safeInstruction}`,
-            `Starting round ${roundNumber}. Focus on ${safeFocus}.`,
-            `Round ${roundNumber}, ${safeFocus}. ${safeInstruction}`
-        ];
-        message = messages[Math.floor(Math.random() * messages.length)];
+    // Prioritize announcing the workout focus rather than just the round number
+    if (safeFocus) {
+        // Announce the focus as the primary message
+        message = `Round ${roundNumber}. ${safeFocus}.`;
+
+        // If instruction is available, add it after a brief pause (represented by period)
+        if (instruction) {
+            message += ` ${instruction}`;
+        }
     } else {
         // Fallback for minimal information
-        const messages = [
-            `Round ${roundNumber} of ${totalRounds}. Begin.`,
-            `Starting round ${roundNumber}.`,
-            `Round ${roundNumber}, focus on your ${safeWorkoutType}.`
-        ];
-        message = messages[Math.floor(Math.random() * messages.length)];
+        message = `Round ${roundNumber} of ${totalRounds}. ${safeWorkoutType} training.`;
     }
 
     speak(message, 'high');
@@ -294,6 +289,19 @@ export function announceHalfway() {
     speak("Halfway point", 'medium');
 }
 
+// Announce focus (specifically for calling at the start of a round)
+export function announceFocus(focus, instruction) {
+    if (!voiceSettings.enabled || !voiceSettings.instructions) return;
+    if (!focus) return;
+
+    let message = focus;
+    if (instruction) {
+        message += `. ${instruction}`;
+    }
+
+    speak(message, 'high');
+}
+
 // Export all functions
 export default {
     initVoiceCoach,
@@ -306,5 +314,6 @@ export default {
     announceBreakEnd,
     announceEncouragement,
     announceHalfway,
+    announceFocus,
     testVoice
 };

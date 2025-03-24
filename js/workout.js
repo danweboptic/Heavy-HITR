@@ -2,7 +2,7 @@
  * HeavyHITR - Workout Module
  * Manages workout functionality and timing
  * @author danweboptic
- * @lastUpdated 2025-03-24 11:48:12
+ * @lastUpdated 2025-03-24 11:54:18
  */
 import { workoutConfig, workoutState } from './settings.js';
 import {
@@ -31,7 +31,8 @@ import {
     announceRoundEnd,
     announceBreakEnd,
     announceEncouragement,
-    announceCountdown
+    announceCountdown,
+    announceFocus
 } from './voice.js';
 
 // Set up workout event handlers
@@ -70,8 +71,9 @@ export function startWorkout() {
 
     // Wait a moment before announcing for better audio experience
     setTimeout(() => {
-        // Only announce if we have valid content
-        if (focusContent && focusContent.focus && focusContent.instruction) {
+        // Announce the round and focus directly
+        if (focusContent && focusContent.focus) {
+            // Just focus on announcing the workout focus, not just "Round X"
             announceRoundStart(
                 workoutState.currentRound,
                 workoutConfig.rounds,
@@ -173,12 +175,12 @@ function updateWorkoutTimer() {
             // Play round start sound
             playRoundStartSound();
 
-            // Announce break end
+            // Announce break end first
             announceBreakEnd();
 
-            // After a brief pause, announce the new round focus
+            // After a brief pause, announce the new round with focus
             setTimeout(() => {
-                if (focusContent && focusContent.focus && focusContent.instruction) {
+                if (focusContent && focusContent.focus) {
                     announceRoundStart(
                         workoutState.currentRound,
                         workoutConfig.rounds,
