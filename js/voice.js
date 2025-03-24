@@ -2,7 +2,7 @@
  * HeavyHITR - Voice Coach Module
  * Provides voice guidance using ResponsiveVoice.js
  * @author danweboptic
- * @lastUpdated 2025-03-21 15:17:59
+ * @lastUpdated 2025-03-24 10:42:15
  */
 
 import { voiceSettings } from './settings.js';
@@ -13,6 +13,7 @@ import { voiceSettings } from './settings.js';
 // State variables
 let speakQueue = [];
 let isSpeaking = false;
+let voiceInitialized = false;
 
 // Initialize voice coach
 export function initVoiceCoach() {
@@ -23,17 +24,45 @@ export function initVoiceCoach() {
         return false;
     }
 
-    // Initialize ResponsiveVoice if not already
-    if (!window.responsiveVoice.isInitialized()) {
-        window.responsiveVoice.init();
+    // Check if ResponsiveVoice is available and not already initialized
+    try {
+        // In newer versions of ResponsiveVoice, isInitialized() doesn't exist
+        // Instead, we can check if the object exists and if speak method is available
+        if (typeof window.responsiveVoice.speak === 'function') {
+            voiceInitialized = true;
+            console.log('Voice coach initialized with ResponsiveVoice');
+            return true;
+        } else {
+            // If speak method isn't available, try to initialize
+            if (typeof window.responsiveVoice.init === 'function') {
+                window.responsiveVoice.init();
+                voiceInitialized = true;
+                console.log('Voice coach initialized with ResponsiveVoice');
+                return true;
+            } else {
+                console.warn('ResponsiveVoice loaded but appears to be incompatible');
+                return false;
+            }
+        }
+    } catch (error) {
+        console.error('Error initializing ResponsiveVoice:', error);
+        return false;
     }
-
-    console.log('Voice coach initialized with ResponsiveVoice');
-    return true;
 }
 
 // Get voice name from settings
 function getVoiceName() {
+    // First check if the setting value is already a valid ResponsiveVoice voice
+    if (voiceSettings.voice && typeof voiceSettings.voice === 'string') {
+        const availableVoices = typeof window.responsiveVoice.getVoices === 'function' ?
+                               window.responsiveVoice.getVoices() : [];
+
+        if (availableVoices.some(v => v.name === voiceSettings.voice)) {
+            return voiceSettings.voice;
+        }
+    }
+
+    // Otherwise, use the mapping
     const voiceMap = {
         'en-US-female': 'US English Female',
         'en-US-male': 'US English Male',
@@ -48,6 +77,11 @@ function getVoiceName() {
 // Speak text using ResponsiveVoice
 export function speak(text, priority = 'medium') {
     if (!voiceSettings.enabled || !window.responsiveVoice) return;
+
+    // Safety check
+    if (!voiceInitialized) {
+        initVoiceCoach();
+    }
 
     // Clear all pending speech if high priority
     if (priority === 'high') {
@@ -94,7 +128,12 @@ export function speak(text, priority = 'medium') {
     };
 
     // Start speaking with ResponsiveVoice
-    window.responsiveVoice.speak(text, getVoiceName(), params);
+    try {
+        window.responsiveVoice.speak(text, getVoiceName(), params);
+    } catch (error) {
+        console.error('ResponsiveVoice speak error:', error);
+        isSpeaking = false;
+    }
 }
 
 // Set voice coach volume
