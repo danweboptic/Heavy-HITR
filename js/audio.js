@@ -34,14 +34,14 @@ const musicTracks = {
 
 // Sound effects mapping
 const soundEffects = {
-    start: 'sounds/workout-start.mp3',
-    roundStart: 'sounds/round-start.mp3',
-    roundEnd: 'sounds/round-end.mp3',
-    countdown: 'sounds/countdown-beep.mp3',
-    pause: 'sounds/pause.mp3',
-    resume: 'sounds/resume.mp3',
-    complete: 'sounds/workout-complete.mp3',
-    tap: 'sounds/tap.mp3' // New small sound for UI interactions
+    start: 'audio/workout-start.mp3',
+    roundStart: 'audio/round-start.mp3',
+    roundEnd: 'audio/round-end.mp3',
+    countdown: 'audio/countdown-beep.mp3',
+    pause: 'audio/pause.mp3',
+    resume: 'audio/resume.mp3',
+    complete: 'audio/workout-complete.mp3',
+    tap: 'audio/tap.mp3' // New small sound for UI interactions
 };
 
 // Sound effect instances for caching
@@ -106,7 +106,7 @@ function setupiOSAudioUnlock() {
         // Also add a tiny tap sound to ensure unlock works
         const unlockElement = document.getElementById('audio-unlock');
         if (!unlockElement) {
-            const audio = new Audio('sounds/tap.mp3');
+            const audio = new Audio('audio/tap.mp3');
             audio.id = 'audio-unlock';
             audio.volume = 0.01;
             document.body.appendChild(audio);
