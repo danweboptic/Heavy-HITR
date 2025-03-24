@@ -898,31 +898,10 @@ function shareWorkout() {
 
 // Sound effects
 function playSound(type) {
-    if (!appSettings.soundEffects) return;
-
-    const sounds = {
-        start: 'sounds/workout-start.mp3',
-        roundStart: 'sounds/round-start.mp3',
-        roundEnd: 'sounds/round-end.mp3',
-        countdown: 'sounds/countdown-beep.mp3',
-        pause: 'sounds/pause.mp3',
-        resume: 'sounds/resume.mp3',
-        complete: 'sounds/workout-complete.mp3'
-    };
-
-    const soundFile = sounds[type];
-
-    if (!soundFile) return;
-
-    try {
-        const audio = new Audio(soundFile);
-        audio.volume = 0.7; // Set volume to 70%
-        audio.play().catch(error => {
-            console.error('Error playing sound:', error);
-        });
-    } catch (error) {
-        console.error('Could not play sound:', error);
-    }
+    // Import directly to avoid circular dependencies
+    import('./audio.js').then(audio => {
+        audio.playSound(type);
+    });
 }
 
 // Screen Wake Lock API
