@@ -1,340 +1,615 @@
 /**
  * HeavyHITR - Workout Module
- * Manages workout functionality and timing
- * @author danweboptic
- * @lastUpdated 2025-03-24 14:35:57
+ * Handles the active workout functionality
  */
-import { workoutConfig, workoutState } from './settings.js';
-import {
-    startAudio,
-    stopAudio,
-    playRoundStartSound,
-    playRoundEndSound,
-    playCountdownSound,
-    playCompleteSound
-} from './audio.js';
-import {
-    showWorkoutOverlay,
-    closeWorkoutOverlay,
-    updateTimerDisplay,
-    updateRoundIndicators,
-    updateWorkoutFocus,
-    updateCoachMessage,
-    togglePauseUI,
-    showWorkoutComplete,
-    getFocusForRound
-} from './ui.js';
-// Import workout content and coach messages
+
+import { workoutConfig, appSettings } from './settings.js';
 import { workoutContent, coachMessages } from './data.js';
-import { saveWorkoutHistory } from './history.js';
-import { formatTime } from './utils.js';
+import { playSound, startMusic, pauseMusic, resumeMusic, stopMusic } from './audio.js';
 import {
-    announceRoundStart,
-    announceRoundEnd,
-    announceBreakEnd,
-    announceEncouragement,
-    announceCountdown
+  announceRoundStart,
+  announceRoundEnd,
+  announceBreakEnd,
+  announceCountdown,
+  announceEncouragement
 } from './voice.js';
+import { formatTime, calculateCaloriesBurned, generateUUID } from './utils.js';
+import { saveWorkoutHistory } from './history.js';
 
-// Set up workout event handlers
-export function setupWorkoutHandlers() {
-    // Everything is handled in UI module by attaching event listeners
+// Workout state
+const workoutState = {
+  isActive: false,
+  isPaused: false,
+  currentRound: 1,
+  currentPhase: 'prepare', // prepare, active, break, complete
+  timeRemaining: 0,
+  totalTime: 0,
+  intervalId: null,
+  focusIndex: 0,
+  musicPlayer: null,
+  startTime: null,
+  encouragementTimer: null
+};
+
+// DOM Elements
+let timerValueEl;
+let timerLabelEl;
+let timerProgressEl;
+let roundIndicatorsEl;
+let focusTitleEl;
+let focusInstructionEl;
+let pauseNotificationEl;
+let workoutActiveEl;
+let workoutTitleEl;
+let workoutTypeEl;
+let coachMessageEl;
+
+// Initialize workout module
+export function initWorkout() {
+  // Get DOM elements
+  timerValueEl = document.getElementById('timer-value');
+  timerLabelEl = document.getElementById('timer-label');
+  timerProgressEl = document.getElementById('timer-progress');
+  roundIndicatorsEl = document.getElementById('round-indicators');
+  focusTitleEl = document.getElementById('focus-title');
+  focusInstructionEl = document.getElementById('focus-instruction');
+  pauseNotificationEl = document.getElementById('pause-notification');
+  workoutActiveEl = document.getElementById('workout-active');
+  workoutTitleEl = document.querySelector('.workout-title');
+  workoutTypeEl = document.querySelector('.workout-type');
+  coachMessageEl = document.getElementById('coach-message');
+
+  // Add event listeners
+  document.getElementById('start-workout').addEventListener('click', startWorkout);
+  document.getElementById('pause-workout').addEventListener('click', pauseWorkout);
+  document.getElementById('resume-workout').addEventListener('click', resumeWorkout);
+  document.getElementById('workout-close').addEventListener('click', confirmEndWorkout);
+  document.getElementById('end-workout').addEventListener('click', confirmEndWorkout);
+
+  // Set up wake lock for screen
+  if ('wakeLock' in navigator) {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+  }
 }
 
-// Start workout
+// Start a new workout
 export function startWorkout() {
-    // Initialize workout state
-    workoutState.isRunning = true;
-    workoutState.isPaused = false;
-    workoutState.currentRound = 1;
-    workoutState.isBreak = false;
-    workoutState.timeRemaining = workoutConfig.roundLength;
-    workoutState.totalTime = 0;
-    workoutState.startTime = new Date();
+  if (workoutState.isActive) return;
 
-    console.log('Starting workout with type:', workoutConfig.workoutType);
-    console.log('Workout content available:', !!workoutContent);
-    console.log('Workout content types:', workoutContent ? Object.keys(workoutContent) : 'N/A');
+  console.log('Starting workout with config:', workoutConfig);
 
-    // Set up UI for workout
-    showWorkoutOverlay();
+  // Reset workout state
+  workoutState.isActive = true;
+  workoutState.isPaused = false;
+  workoutState.currentRound = 1;
+  workoutState.currentPhase = 'prepare';
+  workoutState.timeRemaining = 5; // 5-second countdown
+  workoutState.totalTime = 0;
+  workoutState.focusIndex = 0;
+  workoutState.startTime = new Date();
 
-    // Directly get focus content for this round - IMPORTANT
-    const currentType = workoutConfig.workoutType;
-    const currentRound = workoutState.currentRound;
+  // Show the workout screen
+  showWorkoutScreen();
 
-    // Debug data availability
-    console.log(`Retrieving focus for ${currentType}, round ${currentRound}`);
-    if (workoutContent && workoutContent[currentType]) {
-        const availableItems = workoutContent[currentType].length;
-        console.log(`Available focus items for ${currentType}: ${availableItems}`);
+  // Set up the workout title and type
+  workoutTitleEl.textContent = `${workoutConfig.difficulty.charAt(0).toUpperCase() + workoutConfig.difficulty.slice(1)} ${workoutConfig.rounds}-Round Workout`;
+  workoutTypeEl.textContent = workoutConfig.workoutType.charAt(0).toUpperCase() + workoutConfig.workoutType.slice(1);
 
-        // Calculate the index that will be used
-        const roundIndex = (currentRound - 1) % availableItems;
-        console.log(`Using index ${roundIndex} for round ${currentRound}`);
+  // Create round indicators
+  createRoundIndicators();
 
-        // Log the actual focus content that should be used
-        const expectedFocus = workoutContent[currentType][roundIndex];
-        console.log('Expected focus content:', expectedFocus);
-    }
+  // Update focus content
+  updateFocusContent();
 
-    // Get the actual focus content
-    let focusContent = null;
-    if (workoutContent && workoutContent[currentType]) {
-        const roundIndex = (currentRound - 1) % workoutContent[currentType].length;
-        focusContent = workoutContent[currentType][roundIndex];
-    }
+  // Request wake lock to keep screen on
+  if (appSettings.preventScreenSleep) {
+    requestWakeLock();
+  }
 
-    console.log('Focus content to be used:', focusContent);
+  // Start background music if enabled
+  if (appSettings.music) {
+    startWorkoutMusic();
+  }
 
-    // Update UI with focus content
-    updateWorkoutFocus(focusContent);
+  // Play start sound
+  playSound('start');
 
-    // Set initial coach message
-    updateCoachMessage('roundStart', coachMessages);
+  // Start the timer
+  workoutState.intervalId = setInterval(updateWorkoutTimer, 1000);
 
-    // Update timer display
-    updateTimerDisplay();
-
-    // Start audio
-    startAudio();
-
-    // Play round start sound
-    playRoundStartSound();
-
-    // Wait a moment before announcing for better audio experience
-    setTimeout(() => {
-        // Make sure we have valid focus data before passing to voice announcement
-        if (focusContent && typeof focusContent === 'object' && focusContent.focus) {
-            console.log("Announcing with specific focus:", focusContent.focus);
-
-            // Direct announcement with focus text - pass the string focus, not the object
-            announceRoundStart(
-                workoutState.currentRound,
-                workoutConfig.rounds,
-                workoutConfig.workoutType,
-                focusContent.focus,
-                focusContent.instruction
-            );
-        } else {
-            console.log("Announcing without specific focus");
-
-            // Fallback without focus content
-            announceRoundStart(
-                workoutState.currentRound,
-                workoutConfig.rounds,
-                workoutConfig.workoutType
-            );
-        }
-    }, 1000);
-
-    // Start the timer interval
-    workoutState.interval = setInterval(updateWorkoutTimer, 1000);
+  // Acquire wake lock
+  requestWakeLock();
 }
 
-// Pause or resume workout
-export function pauseWorkout() {
-    workoutState.isPaused = !workoutState.isPaused;
-
-    if (workoutState.isPaused) {
-        stopAudio();
-    } else {
-        // Only restart audio if not in break
-        if (!workoutState.isBreak) {
-            startAudio();
-        }
-    }
-
-    // Update UI to reflect pause state
-    togglePauseUI(workoutState.isPaused);
-}
-
-// End workout early
-export function endWorkout() {
-    // Stop the timer
-    clearInterval(workoutState.interval);
-    workoutState.isRunning = false;
-
-    // Stop audio
-    stopAudio();
-
-    // Calculate total time spent
-    if (workoutState.startTime) {
-        const endTime = new Date();
-        workoutState.totalTime = Math.floor((endTime - workoutState.startTime) / 1000);
-    }
-
-    // Save workout history
-    saveWorkoutHistory();
-
-    // Play complete sound
-    playCompleteSound();
-
-    // Update UI
-    showWorkoutComplete();
-}
-
-// Update workout timer
+// Update the workout timer
 function updateWorkoutTimer() {
-    if (workoutState.isPaused) return;
+  if (workoutState.isPaused) return;
 
-    workoutState.timeRemaining--;
-    workoutState.totalTime++;
+  // Update the time remaining
+  workoutState.timeRemaining--;
 
-    // Update timer display
-    updateTimerDisplay();
+  // Update total workout time
+  workoutState.totalTime++;
 
-    // Final countdown sounds
-    if (workoutState.timeRemaining <= 3 && workoutState.timeRemaining > 0) {
-        playCountdownSound();
-        announceCountdown(workoutState.timeRemaining);
-    }
+  // Update the timer display
+  updateTimerDisplay();
 
-    // Check if time is up for current round or break
-    if (workoutState.timeRemaining <= 0) {
-        if (workoutState.isBreak) {
-            // Break is over, start new round
-            workoutState.isBreak = false;
-            workoutState.currentRound++;
+  // Check if time is up for the current phase
+  if (workoutState.timeRemaining <= 0) {
+    handlePhaseEnd();
+  }
 
-            // Check if workout is complete
-            if (workoutState.currentRound > workoutConfig.rounds) {
-                completeWorkout();
-                return;
-            }
+  // Handle countdown announcements
+  if (workoutState.timeRemaining <= 3 && workoutState.timeRemaining > 0 && appSettings.voiceSettings.countdown) {
+    announceCountdown(workoutState.timeRemaining);
+    playSound('countdown');
+  }
 
-            // Setup for new round
-            workoutState.timeRemaining = workoutConfig.roundLength;
-            updateRoundIndicators();
-
-            // Directly get focus content for this round
-            const currentType = workoutConfig.workoutType;
-            const currentRound = workoutState.currentRound;
-
-            // Get the focus content directly
-            let focusContent = null;
-            if (workoutContent && workoutContent[currentType]) {
-                const roundIndex = (currentRound - 1) % workoutContent[currentType].length;
-                focusContent = workoutContent[currentType][roundIndex];
-            }
-
-            console.log('New round focus content:', focusContent);
-
-            // Update UI with this focus
-            updateWorkoutFocus(focusContent);
-
-            updateCoachMessage('roundStart', coachMessages);
-
-            // Play round start sound
-            playRoundStartSound();
-
-            // Announce break end first
-            announceBreakEnd();
-
-            // After a brief pause, announce the new round with focus
-            setTimeout(() => {
-                // Make sure we have valid focus data
-                if (focusContent && typeof focusContent === 'object' && focusContent.focus) {
-                    console.log("Announcing with specific focus:", focusContent.focus);
-
-                    // Direct announcement with focus text
-                    announceRoundStart(
-                        workoutState.currentRound,
-                        workoutConfig.rounds,
-                        workoutConfig.workoutType,
-                        focusContent.focus,
-                        focusContent.instruction
-                    );
-                } else {
-                    console.log("Announcing without specific focus");
-
-                    // Fallback without focus content
-                    announceRoundStart(
-                        workoutState.currentRound,
-                        workoutConfig.rounds,
-                        workoutConfig.workoutType
-                    );
-                }
-            }, 2000);
-
-            // Start audio for new round
-            startAudio();
-        } else {
-            // Round is over, start break (unless it's the last round)
-            if (workoutState.currentRound === workoutConfig.rounds) {
-                completeWorkout();
-                return;
-            }
-
-            workoutState.isBreak = true;
-            workoutState.timeRemaining = workoutConfig.breakLength;
-            updateCoachMessage('roundEnd', coachMessages);
-
-            // Play round end sound
-            playRoundEndSound();
-
-            // Announce round end
-            announceRoundEnd(workoutState.currentRound === workoutConfig.rounds);
-
-            // Stop audio during break
-            stopAudio();
-        }
-    } else {
-        // During workout, periodically update coach messages
-        if (!workoutState.isBreak) {
-            // Halfway point announcement
-            if (workoutState.timeRemaining === Math.floor(workoutConfig.roundLength / 2)) {
-                updateCoachMessage('encouragement', coachMessages);
-                announceEncouragement(workoutConfig.workoutType);
-            }
-
-            // Regular encouragement
-            else if (workoutState.timeRemaining % 30 === 0) {
-                const messageType = Math.random() > 0.5 ? 'encouragement' : 'technique';
-                updateCoachMessage(messageType, coachMessages);
-
-                // For every minute, give voice encouragement
-                if (workoutState.timeRemaining % 60 === 0) {
-                    announceEncouragement(workoutConfig.workoutType);
-                }
-            }
-        }
-
-        // During break, update break messages
-        if (workoutState.isBreak && workoutState.timeRemaining % 10 === 0) {
-            updateCoachMessage('breakTime', coachMessages);
-        }
-
-        // Last 3 seconds of break, countdown
-        if (workoutState.isBreak && workoutState.timeRemaining <= 3) {
-            updateCoachMessage('countdown', coachMessages);
-        }
-    }
+  // Random encouragement during active phase
+  if (workoutState.currentPhase === 'active' && !workoutState.isPaused) {
+    handleRandomEncouragement();
+  }
 }
 
-// Complete workout
+// Handle the end of a workout phase
+function handlePhaseEnd() {
+  switch (workoutState.currentPhase) {
+    case 'prepare':
+      // Start the first round
+      workoutState.currentPhase = 'active';
+      workoutState.timeRemaining = workoutConfig.roundLength;
+
+      // Play round start sound
+      playSound('roundStart');
+
+      // Announce round start
+      const focusContent = workoutContent[workoutConfig.workoutType][workoutState.focusIndex];
+      announceRoundStart(
+        workoutState.currentRound,
+        workoutConfig.rounds,
+        workoutConfig.workoutType,
+        focusContent.focus,
+        focusContent.instruction
+      );
+
+      updateTimerLabel(`ROUND ${workoutState.currentRound}`);
+      break;
+
+    case 'active':
+      // Mark the current round as complete
+      updateRoundIndicator(workoutState.currentRound, 'completed');
+
+      // Play round end sound
+      playSound('roundEnd');
+
+      // Check if this was the last round
+      if (workoutState.currentRound >= workoutConfig.rounds) {
+        completeWorkout();
+      } else {
+        // Start break
+        workoutState.currentPhase = 'break';
+        workoutState.timeRemaining = workoutConfig.breakLength;
+
+        // Announce round end
+        announceRoundEnd(false);
+
+        // Update focus for next round
+        workoutState.currentRound++;
+        workoutState.focusIndex = (workoutState.focusIndex + 1) % workoutContent[workoutConfig.workoutType].length;
+        updateFocusContent();
+
+        updateTimerLabel('BREAK');
+      }
+      break;
+
+    case 'break':
+      // Start the next round
+      workoutState.currentPhase = 'active';
+      workoutState.timeRemaining = workoutConfig.roundLength;
+
+      // Update the active round indicator
+      updateRoundIndicator(workoutState.currentRound, 'active');
+
+      // Play round start sound
+      playSound('roundStart');
+
+      // Announce break end and round start
+      announceBreakEnd();
+
+      const nextFocusContent = workoutContent[workoutConfig.workoutType][workoutState.focusIndex];
+      announceRoundStart(
+        workoutState.currentRound,
+        workoutConfig.rounds,
+        workoutConfig.workoutType,
+        nextFocusContent.focus,
+        nextFocusContent.instruction
+      );
+
+      updateTimerLabel(`ROUND ${workoutState.currentRound}`);
+      break;
+  }
+}
+
+// Update the timer display
+function updateTimerDisplay() {
+  // Update timer value
+  timerValueEl.textContent = formatTime(workoutState.timeRemaining);
+
+  // Update progress circle
+  let totalTime;
+  switch (workoutState.currentPhase) {
+    case 'prepare':
+      totalTime = 5; // 5-second countdown
+      break;
+    case 'active':
+      totalTime = workoutConfig.roundLength;
+      break;
+    case 'break':
+      totalTime = workoutConfig.breakLength;
+      break;
+    default:
+      totalTime = 0;
+  }
+
+  const circumference = 2 * Math.PI * 45;
+  const offset = circumference - (workoutState.timeRemaining / totalTime) * circumference;
+  timerProgressEl.style.strokeDashoffset = offset;
+  timerProgressEl.style.strokeDasharray = `${circumference} ${circumference}`;
+
+  // Flash timer when time is running low
+  if (workoutState.timeRemaining <= 3 && !timerValueEl.classList.contains('pulse-animation')) {
+    timerValueEl.classList.add('pulse-animation');
+  } else if (workoutState.timeRemaining > 3 && timerValueEl.classList.contains('pulse-animation')) {
+    timerValueEl.classList.remove('pulse-animation');
+  }
+
+  // Update timer color based on phase
+  if (workoutState.currentPhase === 'active') {
+    timerProgressEl.style.stroke = 'var(--primary-color)';
+  } else if (workoutState.currentPhase === 'break') {
+    timerProgressEl.style.stroke = 'var(--secondary-color)';
+  }
+}
+
+// Update the timer label
+function updateTimerLabel(label) {
+  timerLabelEl.textContent = label;
+}
+
+// Create round indicators
+function createRoundIndicators() {
+  roundIndicatorsEl.innerHTML = '';
+
+  for (let i = 1; i <= workoutConfig.rounds; i++) {
+    const indicator = document.createElement('div');
+    indicator.className = 'indicator-dot';
+    indicator.dataset.round = i;
+
+    if (i === 1) {
+      indicator.classList.add('active');
+    }
+
+    roundIndicatorsEl.appendChild(indicator);
+  }
+}
+
+// Update a round indicator
+function updateRoundIndicator(round, status) {
+  const indicators = roundIndicatorsEl.querySelectorAll('.indicator-dot');
+
+  indicators.forEach(indicator => {
+    if (parseInt(indicator.dataset.round) === round) {
+      indicator.classList.remove('active', 'completed');
+      indicator.classList.add(status);
+    }
+  });
+}
+
+// Update the focus content
+function updateFocusContent() {
+  const focusContent = workoutContent[workoutConfig.workoutType][workoutState.focusIndex];
+
+  if (focusContent) {
+    focusTitleEl.textContent = focusContent.focus;
+    focusInstructionEl.textContent = focusContent.instruction || '';
+  }
+}
+
+// Complete the workout
 function completeWorkout() {
-    // Stop the timer
-    clearInterval(workoutState.interval);
-    workoutState.isRunning = false;
+  // Stop the timer
+  clearInterval(workoutState.intervalId);
 
-    // Stop the audio
-    stopAudio();
+  // Play complete sound
+  playSound('complete');
 
-    // Play completion sound
-    playCompleteSound();
+  // Announce workout complete
+  announceRoundEnd(true);
 
-    // Save workout history
-    saveWorkoutHistory();
+  // Stop music if playing
+  if (workoutState.musicPlayer) {
+    stopMusic();
+    workoutState.musicPlayer = null;
+  }
 
-    // Show completion message
-    updateCoachMessage('workoutComplete', coachMessages);
+  // Release wake lock
+  releaseWakeLock();
 
-    // Announce workout complete
-    announceRoundEnd(true);
-    
-    // Show workout complete screen after a short delay
-    setTimeout(() => {
-        showWorkoutComplete();
-    }, 1500);
+  // Save workout history
+  const workout = saveWorkoutToHistory();
+
+  // Hide the workout screen
+  hideWorkoutScreen();
+
+  // Show the completion screen
+  showCompletionScreen(workout);
+
+  // Reset workout state
+  workoutState.isActive = false;
+  workoutState.currentPhase = 'complete';
 }
+
+// Save workout to history
+function saveWorkoutToHistory() {
+  return saveWorkoutHistory();
+}
+
+// Show the workout screen
+function showWorkoutScreen() {
+  workoutActiveEl.classList.add('active');
+  workoutActiveEl.setAttribute('aria-hidden', 'false');
+
+  // Focus on a button in the workout screen for better accessibility
+  setTimeout(() => {
+    const pauseBtn = document.getElementById('pause-workout');
+    if (pauseBtn) pauseBtn.focus();
+  }, 300);
+}
+
+// Hide the workout screen
+function hideWorkoutScreen() {
+  workoutActiveEl.classList.remove('active');
+  workoutActiveEl.setAttribute('aria-hidden', 'true');
+}
+
+// Show the completion screen
+function showCompletionScreen(workout) {
+  const completionScreen = document.getElementById('workout-complete');
+
+  // Update summary values
+  document.getElementById('summary-rounds').textContent = workoutState.currentRound;
+  document.getElementById('summary-time').textContent = formatTime(workoutState.totalTime);
+  document.getElementById('summary-level').textContent = workoutConfig.difficulty.charAt(0).toUpperCase() + workoutConfig.difficulty.slice(1);
+  document.getElementById('summary-type').textContent = workoutConfig.workoutType.charAt(0).toUpperCase() + workoutConfig.workoutType.slice(1);
+
+  // Show the screen
+  completionScreen.classList.add('active');
+  completionScreen.setAttribute('aria-hidden', 'false');
+
+  // Add event listeners to the completion buttons
+  document.getElementById('new-workout').addEventListener('click', () => {
+    completionScreen.classList.remove('active');
+    completionScreen.setAttribute('aria-hidden', 'true');
+  });
+
+  document.getElementById('share-workout').addEventListener('click', () => {
+    shareWorkout(workout);
+  });
+
+  // Focus on a button in the completion screen for better accessibility
+  setTimeout(() => {
+    const newWorkoutBtn = document.getElementById('new-workout');
+    if (newWorkoutBtn) newWorkoutBtn.focus();
+  }, 300);
+}
+
+// Share workout
+function shareWorkout(workout) {
+  const shareText = `Just completed a ${workout.difficulty} ${workout.workoutType} boxing workout on HeavyHITR! ${workout.rounds} rounds in ${formatTime(workout.duration)}.`;
+
+  if (navigator.share) {
+    navigator.share({
+      title: 'HeavyHITR Workout',
+      text: shareText,
+    }).catch(console.error);
+  } else {
+    // Fallback - copy to clipboard
+    navigator.clipboard.writeText(shareText).then(() => {
+      alert('Workout details copied to clipboard!');
+    }).catch(console.error);
+  }
+}
+
+// Pause the workout
+function pauseWorkout() {
+  if (!workoutState.isActive || workoutState.isPaused) return;
+
+  workoutState.isPaused = true;
+
+  // Show pause notification
+  pauseNotificationEl.classList.add('visible');
+
+  // Play pause sound
+  playSound('pause');
+
+  // Pause music if playing
+  if (workoutState.musicPlayer) {
+    pauseMusic();
+  }
+
+  // Focus on resume button for accessibility
+  setTimeout(() => {
+    const resumeBtn = document.getElementById('resume-workout');
+    if (resumeBtn) resumeBtn.focus();
+  }, 100);
+}
+
+// Resume the workout
+function resumeWorkout() {
+  if (!workoutState.isActive || !workoutState.isPaused) return;
+
+  workoutState.isPaused = false;
+
+  // Hide pause notification
+  pauseNotificationEl.classList.remove('visible');
+
+  // Play resume sound
+  playSound('resume');
+
+  // Resume music if it was playing
+  if (workoutState.musicPlayer) {
+    resumeMusic();
+  }
+
+  // Focus on pause button for accessibility
+  setTimeout(() => {
+    const pauseBtn = document.getElementById('pause-workout');
+    if (pauseBtn) pauseBtn.focus();
+  }, 100);
+}
+
+// Confirm end workout
+function confirmEndWorkout() {
+  if (!workoutState.isActive) return;
+
+  if (confirm('Are you sure you want to end the workout?')) {
+    endWorkout();
+  }
+}
+
+// End the workout
+function endWorkout() {
+  if (!workoutState.isActive) return;
+
+  // Stop the timer
+  clearInterval(workoutState.intervalId);
+
+  // Stop music if playing
+  if (workoutState.musicPlayer) {
+    stopMusic();
+    workoutState.musicPlayer = null;
+  }
+
+  // Release wake lock
+  releaseWakeLock();
+
+  // Hide the workout screen
+  hideWorkoutScreen();
+
+  // Reset workout state
+  workoutState.isActive = false;
+  workoutState.currentPhase = 'complete';
+}
+
+// Handle random encouragement
+function handleRandomEncouragement() {
+  if (!appSettings.voiceSettings.encouragement) return;
+
+  // Only show encouragement messages randomly during the middle of rounds
+  const roundProgress = (workoutConfig.roundLength - workoutState.timeRemaining) / workoutConfig.roundLength;
+
+  if (roundProgress > 0.3 && roundProgress < 0.8) {
+    // Random chance to show encouragement (about once per round)
+    const chancePerSecond = 1 / (workoutConfig.roundLength * 0.5);
+
+    if (Math.random() < chancePerSecond) {
+      announceEncouragement(workoutConfig.workoutType);
+      showCoachMessage();
+    }
+  }
+}
+
+// Show a coach message
+function showCoachMessage() {
+  // Get random message for workout type
+  const typeMessages = coachMessages[workoutConfig.workoutType] || coachMessages.general;
+  const randomMessage = typeMessages[Math.floor(Math.random() * typeMessages.length)];
+
+  // Update message text
+  coachMessageEl.querySelector('.focus-instruction').textContent = randomMessage;
+
+  // Show the message
+  coachMessageEl.style.display = 'block';
+  coachMessageEl.classList.add('slide-in');
+
+  // Hide after a few seconds
+  setTimeout(() => {
+    coachMessageEl.classList.remove('slide-in');
+    setTimeout(() => {
+      coachMessageEl.style.display = 'none';
+    }, 300);
+  }, 4000);
+}
+
+// Start workout music
+function startWorkoutMusic() {
+  let musicCategory;
+
+  // Select music category based on workout type
+  switch (workoutConfig.workoutType) {
+    case 'striking':
+    case 'conditioning':
+      musicCategory = 'intense';
+      break;
+    case 'footwork':
+      musicCategory = 'energetic';
+      break;
+    case 'defense':
+      musicCategory = 'relaxed';
+      break;
+    default:
+      musicCategory = 'energetic';
+  }
+
+  // Start music with appropriate volume
+  startMusic(musicCategory, appSettings.musicVolume)
+    .then(player => {
+      workoutState.musicPlayer = player;
+    })
+    .catch(err => {
+      console.error('Failed to start music:', err);
+    });
+}
+
+// Handle visibility change for wake lock
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible' && workoutState.isActive && appSettings.preventScreenSleep) {
+    requestWakeLock();
+  }
+}
+
+// Wake lock to prevent screen from sleeping
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if ('wakeLock' in navigator && appSettings.preventScreenSleep) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      console.log('Wake lock is active');
+
+      wakeLock.addEventListener('release', () => {
+        console.log('Wake lock was released');
+      });
+    } catch (err) {
+      console.error('Failed to get wake lock:', err);
+    }
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock !== null) {
+    wakeLock.release()
+      .then(() => {
+        wakeLock = null;
+      })
+      .catch(err => {
+        console.error('Error releasing wake lock:', err);
+      });
+  }
+}
+
+export default {
+  initWorkout,
+  startWorkout,
+  workoutState
+};

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://code.responsivevoice.org">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.responsivevoice.org; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; media-src 'self' data: blob:;">
     <title>HeavyHITR - Boxing Workout App</title>
 
     <!-- PWA Meta Tags -->
@@ -11,6 +11,9 @@
     <meta name="description" content="Boxing heavy bag workout timer and trainer">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <!-- Inert Attribute Polyfill -->
+    <script src="https://cdn.jsdelivr.net/npm/wicg-inert@3.1.2/dist/inert.min.js"></script>
 
     <!-- External CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
@@ -33,17 +36,17 @@
     <!-- Main App Container -->
     <div class="app-container">
         <!-- Navigation Bar -->
-        <div class="nav-bar">
+        <div class="nav-bar" role="banner">
             <div class="nav-logo">
                 <div class="logo-text">Heavy<span class="accent-text">HITR</span></div>
             </div>
             <div class="nav-actions">
-                <button class="icon-btn">
+                <button class="icon-btn" aria-label="Create new workout">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                 </button>
-                <button class="icon-btn">
+                <button class="icon-btn" aria-label="Open settings">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -53,20 +56,20 @@
         </div>
 
         <!-- Tab Navigation -->
-        <div class="tab-nav">
-            <button id="tab-workouts" class="tab-btn active">
+        <div class="tab-nav" role="navigation" aria-label="Main navigation">
+            <button id="tab-workouts" class="tab-btn active" aria-selected="true" aria-controls="workouts-content">
                 <svg xmlns="http://www.w3.org/2000/svg" class="tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Workout
             </button>
-            <button id="tab-history" class="tab-btn">
+            <button id="tab-history" class="tab-btn" aria-selected="false" aria-controls="history-content">
                 <svg xmlns="http://www.w3.org/2000/svg" class="tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
                 History
             </button>
-            <button id="tab-settings" class="tab-btn">
+            <button id="tab-settings" class="tab-btn" aria-selected="false" aria-controls="settings-content">
                 <svg xmlns="http://www.w3.org/2000/svg" class="tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
@@ -75,21 +78,21 @@
         </div>
 
         <!-- Main Content -->
-        <div class="main-content">
+        <div class="main-content" role="main">
             <!-- Workouts Tab Content -->
-            <div id="workouts-content" class="tab-content active">
+            <div id="workouts-content" class="tab-content active" role="tabpanel" aria-labelledby="tab-workouts">
                 <!-- Stats Summary -->
-                <div class="stats-summary">
+                <div class="stats-summary" aria-label="Workout statistics">
                     <div class="stat-item">
-                        <div class="stat-value" id="total-workouts">0</div>
+                        <div class="stat-value" id="total-workouts" aria-label="Total workouts">0</div>
                         <div class="stat-label">Total<br>Workouts</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="week-workouts">0</div>
+                        <div class="stat-value" id="week-workouts" aria-label="Workouts this week">0</div>
                         <div class="stat-label">This<br>Week</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="streak-count">0</div>
+                        <div class="stat-value" id="streak-count" aria-label="Day streak">0</div>
                         <div class="stat-label">Day<br>Streak</div>
                     </div>
                 </div>
@@ -98,35 +101,35 @@
                 <div class="section-header">
                     <h2>Workout Type</h2>
                 </div>
-                <div class="workout-categories">
-                    <div class="category-card active" data-type="striking">
-                        <div class="category-icon">
+                <div class="workout-categories" role="radiogroup" aria-label="Workout type selection">
+                    <div class="category-card active" data-type="striking" role="radio" aria-checked="true" tabindex="0">
+                        <div class="category-icon" aria-hidden="true">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                             </svg>
                         </div>
                         <div class="category-name">Striking</div>
                     </div>
-                    <div class="category-card" data-type="footwork">
-                        <div class="category-icon">
+                    <div class="category-card" data-type="footwork" role="radio" aria-checked="false" tabindex="0">
+                        <div class="category-icon" aria-hidden="true">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                         </div>
                         <div class="category-name">Footwork</div>
                     </div>
-                    <div class="category-card" data-type="defense">
-                        <div class="category-icon">
+                    <div class="category-card" data-type="defense" role="radio" aria-checked="false" tabindex="0">
+                        <div class="category-icon" aria-hidden="true">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016zM12 9v2m0 4h.01" />
                             </svg>
                         </div>
                         <div class="category-name">Defense</div>
                     </div>
-                    <div class="category-card" data-type="conditioning">
-                        <div class="category-icon">
+                    <div class="category-card" data-type="conditioning" role="radio" aria-checked="false" tabindex="0">
+                        <div class="category-icon" aria-hidden="true">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h.5A2.5 2.5 0 0020 5.5v-1.5" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h.5A2.5 2.5 0 0020 5.5v-1.1a2 2 0 00-2-2H8a2 2 0 00-2 2v1.1z" />
                             </svg>
                         </div>
                         <div class="category-name">Conditioning</div>
@@ -134,43 +137,44 @@
                 </div>
 
                 <!-- Custom Workout Card -->
-                <div class="custom-workout-card">
+                <div class="custom-workout-card" aria-labelledby="workout-settings">
+                    <div id="workout-settings" class="sr-only">Workout settings</div>
                     <!-- Rounds -->
                     <div class="custom-workout-section">
                         <div class="custom-section-header">
-                            <h3>Rounds</h3>
-                            <div class="value-display" id="rounds-value">3</div>
+                            <h3 id="rounds-label">Rounds</h3>
+                            <div class="value-display" id="rounds-value" aria-live="polite">3</div>
                         </div>
-                        <input type="range" id="rounds" class="slider" min="1" max="12" value="3">
+                        <input type="range" id="rounds" class="slider" min="1" max="12" value="3" aria-labelledby="rounds-label" aria-valuemin="1" aria-valuemax="12" aria-valuenow="3">
                     </div>
 
                     <!-- Round Length -->
                     <div class="custom-workout-section">
                         <div class="custom-section-header">
-                            <h3>Round Length</h3>
-                            <div class="value-display" id="round-length-value">3:00</div>
+                            <h3 id="round-length-label">Round Length</h3>
+                            <div class="value-display" id="round-length-value" aria-live="polite">3:00</div>
                         </div>
-                        <input type="range" id="round-length" class="slider" min="30" max="300" step="15" value="180">
+                        <input type="range" id="round-length" class="slider" min="30" max="300" step="15" value="180" aria-labelledby="round-length-label" aria-valuemin="30" aria-valuemax="300" aria-valuenow="180">
                     </div>
 
                     <!-- Break Length -->
                     <div class="custom-workout-section">
                         <div class="custom-section-header">
-                            <h3>Break Length</h3>
-                            <div class="value-display" id="break-length-value">0:30</div>
+                            <h3 id="break-length-label">Break Length</h3>
+                            <div class="value-display" id="break-length-value" aria-live="polite">0:30</div>
                         </div>
-                        <input type="range" id="break-length" class="slider" min="10" max="120" step="5" value="30">
+                        <input type="range" id="break-length" class="slider" min="10" max="120" step="5" value="30" aria-labelledby="break-length-label" aria-valuemin="10" aria-valuemax="120" aria-valuenow="30">
                     </div>
 
                     <!-- Difficulty Buttons -->
                     <div class="custom-workout-section">
                         <div class="custom-section-header">
-                            <h3>Difficulty Level</h3>
+                            <h3 id="difficulty-label">Difficulty Level</h3>
                         </div>
-                        <div class="difficulty-buttons">
-                            <button class="difficulty-btn" data-level="beginner">Beginner</button>
-                            <button class="difficulty-btn active" data-level="intermediate">Intermediate</button>
-                            <button class="difficulty-btn" data-level="advanced">Advanced</button>
+                        <div class="difficulty-buttons" role="radiogroup" aria-labelledby="difficulty-label">
+                            <button class="difficulty-btn" data-level="beginner" role="radio" aria-checked="false">Beginner</button>
+                            <button class="difficulty-btn active" data-level="intermediate" role="radio" aria-checked="true">Intermediate</button>
+                            <button class="difficulty-btn" data-level="advanced" role="radio" aria-checked="false">Advanced</button>
                         </div>
                     </div>
 
@@ -178,164 +182,189 @@
                     <div class="custom-workout-section">
                         <div class="custom-section-header">
                             <h3>Music</h3>
-                            <button class="music-toggle-btn" id="toggle-music">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <button class="music-toggle-btn" id="toggle-music" aria-pressed="true" aria-label="Toggle music">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                                 </svg>
                                 <span id="music-status">ON</span>
                             </button>
                         </div>
                         <div class="volume-control">
-                            <div class="volume-label">Volume</div>
-                            <input type="range" id="music-volume" class="slider" min="0" max="1" step="0.1" value="0.5">
+                            <div class="volume-label" id="music-volume-label">Volume</div>
+                            <input type="range" id="music-volume" class="slider" min="0" max="1" step="0.1" value="0.5" aria-labelledby="music-volume-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
                         </div>
-                        <div class="track-name" id="current-track-name">Ready to play</div>
+                        <div class="track-name" id="current-track-name" aria-live="polite">Ready to play</div>
                     </div>
 
                     <!-- Start Workout Button -->
-                    <button class="start-custom-btn" id="start-workout">START WORKOUT</button>
+                    <button class="start-custom-btn" id="start-workout" aria-label="Start workout">START WORKOUT</button>
                 </div>
             </div>
 
             <!-- History Tab Content -->
-            <div id="history-content" class="tab-content">
+            <div id="history-content" class="tab-content" role="tabpanel" aria-labelledby="tab-history">
+                <!-- History Header -->
                 <div class="section-header">
-                    <h2>Workout Calendar</h2>
+                    <h2>Workout History</h2>
                 </div>
 
-                <div class="activity-calendar">
-                    <div class="month-header" id="calendar-month">March 2025</div>
-                    <div class="weekdays">
-                        <div>Sun</div>
-                        <div>Mon</div>
-                        <div>Tue</div>
-                        <div>Wed</div>
-                        <div>Thu</div>
-                        <div>Fri</div>
-                        <div>Sat</div>
-                    </div>
-                    <div class="calendar-grid" id="calendar-grid">
-                        <!-- JS will populate calendar days here -->
-                    </div>
+                <!-- Calendar View -->
+                <div class="calendar-container" id="calendar-container">
+                    <!-- Calendar will be generated by JS -->
                 </div>
 
+                <!-- Recent Workouts -->
                 <div class="section-header">
                     <h2>Recent Workouts</h2>
                 </div>
-
                 <div class="recent-workouts" id="recent-workouts">
-                    <!-- Recent workouts will be inserted here by JS -->
+                    <!-- Recent workouts will be populated by JS -->
                     <div class="empty-state">
-                        <p>No recent workouts found.</p>
-                        <p>Start a workout to track your progress!</p>
+                        <div class="empty-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <p>No workout history yet. Complete your first workout to see it here!</p>
                     </div>
-                </div>
-
-                <div class="section-header">
-                    <h2>Progress</h2>
-                </div>
-
-                <div class="progress-chart">
-                    <canvas id="workout-chart"></canvas>
                 </div>
             </div>
 
             <!-- Settings Tab Content -->
-            <div id="settings-content" class="tab-content">
-                <!-- Sound Effects -->
+            <div id="settings-content" class="tab-content" role="tabpanel" aria-labelledby="tab-settings">
+                <!-- Audio Settings -->
                 <div class="settings-section">
-                    <div class="settings-section-title">Sound Settings</div>
-                    <div class="settings-item">
-                        <div class="settings-item-label">Sound Effects</div>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="sound-toggle" class="toggle-input" checked>
-                            <label for="sound-toggle" class="toggle-label"></label>
+                    <div class="section-header">
+                        <h2>Audio Settings</h2>
+                    </div>
+                    <div class="settings-option">
+                        <div class="setting-label">
+                            <label for="sound-toggle">Sound Effects</label>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="sound-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-option">
+                        <div class="setting-label">
+                            <label for="voice-toggle">Voice Coach</label>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="voice-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
 
-                <!-- Voice Coach Settings -->
-                <div class="settings-section">
-                    <div class="settings-section-title">Voice Coach</div>
-                    <div class="settings-item">
-                        <div class="settings-item-label">Enable Voice Coach</div>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="voice-toggle" class="toggle-input" checked>
-                            <label for="voice-toggle" class="toggle-label"></label>
+                <!-- Voice Settings -->
+                <div id="voice-settings" class="settings-section">
+                    <div class="settings-option">
+                        <div class="setting-label">
+                            <label for="voice-type">Voice Type</label>
                         </div>
-                    </div>
-
-                    <div id="voice-settings">
-                        <div class="settings-item">
-                            <div class="settings-item-label">Voice Type</div>
-                            <select class="settings-select" id="voice-type">
-                                <option value="UK English Female">UK Female</option>
-                                <option value="UK English Male">UK Male</option>
-                                <option value="US English Female">US Female</option>
-                                <option value="US English Male" selected>US Male</option>
-                                <option value="Australian Female">AU Female</option>
-                                <option value="Australian Male">AU Male</option>
+                        <div class="setting-control">
+                            <select id="voice-type" class="settings-select">
+                                <option value="en-US-female">US English Female</option>
+                                <option value="en-US-male">US English Male</option>
+                                <option value="en-GB-female">UK English Female</option>
+                                <option value="en-GB-male">UK English Male</option>
+                                <option value="en-AU-female">Australian Female</option>
                             </select>
                         </div>
-
-                        <div class="settings-item">
-                            <div class="settings-item-label">Voice Volume</div>
-                            <div class="settings-slider-container">
-                                <input type="range" class="settings-slider" id="voice-volume" min="0" max="1" step="0.1" value="0.7">
-                                <span id="voice-volume-value">70%</span>
-                            </div>
+                    </div>
+                    <div class="settings-option">
+                        <div class="setting-label">
+                            <label for="voice-volume">Voice Volume</label>
+                            <span id="voice-volume-value">80%</span>
                         </div>
-
-                        <div class="settings-sub-items">
-                            <div class="settings-item">
-                                <div class="settings-item-label">Countdown Announcements</div>
-                                <div class="toggle-switch">
-                                    <input type="checkbox" id="voice-countdown-toggle" class="toggle-input" checked>
-                                    <label for="voice-countdown-toggle" class="toggle-label"></label>
-                                </div>
-                            </div>
-                            <div class="settings-item">
-                                <div class="settings-item-label">Encouragement</div>
-                                <div class="toggle-switch">
-                                    <input type="checkbox" id="voice-encouragement-toggle" class="toggle-input" checked>
-                                    <label for="voice-encouragement-toggle" class="toggle-label"></label>
-                                </div>
-                            </div>
-                            <div class="settings-item">
-                                <div class="settings-item-label">Exercise Instructions</div>
-                                <div class="toggle-switch">
-                                    <input type="checkbox" id="voice-instructions-toggle" class="toggle-input" checked>
-                                    <label for="voice-instructions-toggle" class="toggle-label"></label>
-                                </div>
-                            </div>
+                        <div class="setting-control">
+                            <input type="range" id="voice-volume" class="slider" min="0" max="1" step="0.1" value="0.8">
                         </div>
-
-                        <button class="settings-action-btn" id="test-voice-btn">Test Voice</button>
+                    </div>
+                    <div class="settings-option">
+                        <div class="setting-label">
+                            <label for="voice-countdown-toggle">Count Down</label>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="voice-countdown-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-option">
+                        <div class="setting-label">
+                            <label for="voice-encouragement-toggle">Encouragement</label>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="voice-encouragement-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-option">
+                        <div class="setting-label">
+                            <label for="voice-instructions-toggle">Instructions</label>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="voice-instructions-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-button-container">
+                        <button id="test-voice-btn" class="settings-btn">Test Voice</button>
                     </div>
                 </div>
 
                 <!-- Workout Settings -->
                 <div class="settings-section">
-                    <div class="settings-section-title">Workout Settings</div>
-                    <div class="settings-item">
-                        <div class="settings-item-label">Countdown Timer</div>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="countdown-toggle" class="toggle-input" checked>
-                            <label for="countdown-toggle" class="toggle-label"></label>
+                    <div class="section-header">
+                        <h2>Workout Settings</h2>
+                    </div>
+                    <div class="settings-option">
+                        <div class="setting-label">
+                            <label for="countdown-toggle">Countdown Timer</label>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="countdown-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
-                    <div class="settings-item">
-                        <div class="settings-item-label">Keep Screen On During Workouts</div>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="screenlock-toggle" class="toggle-input" checked>
-                            <label for="screenlock-toggle" class="toggle-label"></label>
+                    <div class="settings-option">
+                        <div class="setting-label">
+                            <label for="screenlock-toggle">Prevent Screen Sleep</label>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="screenlock-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
-                    <div class="settings-item">
-                        <div class="settings-item-label">Your Weight</div>
-                        <div class="settings-combined">
-                            <input type="number" class="settings-input" id="user-weight" value="70" min="20" max="300">
-                            <select class="settings-unit" id="weight-unit">
+                </div>
+
+                <!-- User Settings -->
+                <div class="settings-section">
+                    <div class="section-header">
+                        <h2>User Settings</h2>
+                    </div>
+                    <div class="settings-option">
+                        <div class="setting-label">
+                            <label for="user-weight">Weight</label>
+                        </div>
+                        <div class="setting-control weight-input-container">
+                            <input type="number" id="user-weight" class="settings-input" value="70" min="30" max="200">
+                            <select id="weight-unit" class="settings-select unit-select">
                                 <option value="kg">kg</option>
                                 <option value="lb">lb</option>
                             </select>
@@ -345,75 +374,79 @@
 
                 <!-- Data Management -->
                 <div class="settings-section">
-                    <div class="settings-section-title">Data Management</div>
-                    <button class="settings-danger-btn" id="clear-history-btn">Clear Workout History</button>
-                    <button class="settings-action-btn" id="reset-settings-btn">Reset Settings to Default</button>
+                    <div class="section-header">
+                        <h2>Data Management</h2>
+                    </div>
+                    <div class="settings-button-container">
+                        <button id="clear-history-btn" class="settings-btn danger">Clear Workout History</button>
+                        <button id="reset-settings-btn" class="settings-btn warning">Reset All Settings</button>
+                    </div>
                 </div>
 
-                <!-- About -->
-                <div class="settings-section about-section">
-                    <div class="settings-section-title">About</div>
-                    <p>HeavyHITR v1.0.0</p>
-                    <div class="about-links">
-                        <a href="#" class="about-link">Privacy Policy</a>
-                        <a href="#" class="about-link">Terms of Service</a>
-                        <a href="#" class="about-link">Contact Support</a>
+                <!-- App Information -->
+                <div class="settings-section app-info">
+                    <div class="section-header">
+                        <h2>About</h2>
                     </div>
-                    <p class="copyright">© 2025 DanWebOptic. All rights reserved.</p>
+                    <p>HeavyHITR v1.2.0</p>
+                    <p>Created by Dan Web</p>
+                    <p class="copyright">© 2025 danweboptic</p>
                 </div>
             </div>
         </div>
 
         <!-- Workout Active Overlay -->
-        <div id="workout-active" class="workout-active">
+        <div id="workout-active" class="workout-active" role="dialog" aria-label="Active workout" aria-hidden="true" inert>
             <div class="workout-header">
-                <div>
-                    <div class="workout-title">Intermediate</div>
-                    <div class="workout-type">Striking</div>
+                <div class="workout-info">
+                    <div class="workout-title"></div>
+                    <div class="workout-type"></div>
                 </div>
-                <button class="workout-close" id="workout-close">
+                <button id="workout-close" class="workout-close-btn" aria-label="Close workout">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
 
-            <div class="workout-body">
+            <div class="timer-container">
                 <div class="timer-wrapper">
-                    <svg class="timer-circle" width="240" height="240" viewBox="0 0 100 100">
-                        <circle class="timer-circle-bg" cx="50" cy="50" r="45" />
-                        <circle id="timer-progress" class="timer-circle-progress" cx="50" cy="50" r="45" stroke-dasharray="282.74" stroke-dashoffset="0" />
+                    <svg class="timer-svg" viewBox="0 0 100 100">
+                        <circle class="timer-bg" cx="50" cy="50" r="45" />
+                        <circle id="timer-progress" class="timer-progress" cx="50" cy="50" r="45" />
                     </svg>
-                    <div class="timer-text">
-                        <div class="timer-value" id="timer-value">3:00</div>
-                        <div class="timer-label" id="timer-label">ROUND 1</div>
+                    <div class="timer-content">
+                        <div id="timer-value" class="timer-value">0:00</div>
+                        <div id="timer-label" class="timer-label">ROUND 1</div>
                     </div>
-                </div>
-
-                <div class="round-indicator" id="round-indicators">
-                    <!-- JS will populate indicator dots here -->
-                </div>
-
-                <div class="workout-focus">
-                    <div class="focus-title" id="focus-title">Jab Cross Combinations</div>
-                    <div class="focus-instruction" id="focus-instruction">Focus on quick, powerful combinations with proper form</div>
-                </div>
-
-                <div class="coach-message" id="coach-message">
-                    <div class="focus-instruction">Get ready to start!</div>
                 </div>
             </div>
 
+            <div class="workout-indicators">
+                <div id="round-indicators" class="round-indicators">
+                    <!-- Round indicators will be added dynamically in JS -->
+                </div>
+            </div>
+
+            <div class="focus-container">
+                <div id="focus-title" class="focus-title">Jab Focus</div>
+                <div id="focus-instruction" class="focus-instruction">Extend your lead hand fully, rotate your fist at the end of the punch</div>
+            </div>
+
+            <div id="coach-message" class="coach-message" aria-live="polite">
+                <div class="focus-instruction">Keep your guard up!</div>
+            </div>
+
             <div class="workout-controls">
-                <button class="control-btn pause-btn" id="pause-workout">
+                <button id="pause-workout" class="workout-control-btn pause-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     PAUSE
                 </button>
-                <button class="control-btn end-btn" id="end-workout">
+                <button id="end-workout" class="workout-control-btn end-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                     END
                 </button>
@@ -421,44 +454,71 @@
         </div>
 
         <!-- Workout Complete Overlay -->
-        <div id="workout-complete" class="workout-complete">
-            <div class="complete-header">
-                <div class="complete-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div id="workout-complete" class="workout-complete" role="dialog" aria-label="Workout complete" aria-hidden="true" inert>
+            <div class="completion-header">
+                <h2>Workout Complete!</h2>
+                <div class="completion-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                 </div>
-                <div class="complete-title">Workout Complete!</div>
-                <div class="complete-subtitle">Great job! Here's your workout summary.</div>
             </div>
 
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-card-value" id="summary-rounds">3</div>
-                    <div class="stat-card-label">Rounds</div>
+            <div class="workout-summary">
+                <div class="summary-item">
+                    <div class="summary-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                        </svg>
+                    </div>
+                    <div class="summary-label">Rounds</div>
+                    <div id="summary-rounds" class="summary-value">3</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-card-value" id="summary-time">9:30</div>
-                    <div class="stat-card-label">Total Time</div>
+
+                <div class="summary-item">
+                    <div class="summary-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="summary-label">Time</div>
+                    <div id="summary-time" class="summary-value">10:30</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-card-value" id="summary-level">Intermediate</div>
-                    <div class="stat-card-label">Level</div>
+
+                <div class="summary-item">
+                    <div class="summary-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </div>
+                    <div class="summary-label">Level</div>
+                    <div id="summary-level" class="summary-value">Intermediate</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-card-value" id="summary-type">Striking</div>
-                    <div class="stat-card-label">Type</div>
+
+                <div class="summary-item">
+                    <div class="summary-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div class="summary-label">Type</div>
+                    <div id="summary-type" class="summary-value">Striking</div>
                 </div>
             </div>
 
-            <div class="complete-actions">
-                <button class="share-btn" id="share-workout">
+            <div class="completion-actions">
+                <button id="share-workout" class="completion-btn share-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                     </svg>
-                    SHARE WORKOUT
+                    SHARE
                 </button>
-                <button class="new-workout-btn" id="new-workout">START NEW WORKOUT</button>
+                <button id="new-workout" class="completion-btn new-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    NEW WORKOUT
+                </button>
             </div>
         </div>
     </div>
@@ -471,58 +531,66 @@
         // iOS Audio Unlock - This helps with iOS audio restrictions
         document.addEventListener('DOMContentLoaded', function() {
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
+            
             if (isIOS) {
                 console.log("iOS device detected, setting up audio unlocking");
-
-                // Unlock function to be called on user interaction
-                function unlockAudio() {
+                
+                // This function is now simplified since the main unlocking logic
+                // has been moved to the app.js setupIOSAudioUnlock() function
+                function initialUnlock() {
                     const audioEl = document.getElementById('audio-unlock');
                     if (audioEl) {
-                        // Set volume to nearly silent
                         audioEl.volume = 0.01;
-
-                        // Try to play and catch any errors
-                        const playPromise = audioEl.play();
-                        if (playPromise !== undefined) {
-                            playPromise.catch(err => {
-                                console.log("Expected audio unlock error:", err);
-                            });
-                        }
-                    }
-
-                    // Also try to unlock Howler if it's loaded
-                    if (window.Howler && window.Howler.ctx && window.Howler.ctx.state === 'suspended') {
-                        window.Howler.ctx.resume().then(() => {
-                            console.log("Howler audio context resumed");
+                        audioEl.play().catch(err => {
+                            console.log("Expected initial audio unlock error:", err);
                         });
                     }
                 }
-
-                // Add multiple event listeners for better iOS compatibility
-                const events = ['touchstart', 'touchend', 'mousedown', 'mouseup', 'click'];
-                events.forEach(eventName => {
-                    document.addEventListener(eventName, unlockAudio, { once: true });
-                });
+                
+                // One event listener is enough for initial page load
+                document.addEventListener('click', initialUnlock, { once: true });
             }
         });
     </script>
 
     <!-- Service Worker Registration -->
     <script>
+        // Check if service worker is supported
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
                 .then(registration => {
                     console.log('ServiceWorker registered:', registration);
+                    
+                    // Check for updates to the service worker
+                    registration.update();
+                    
+                    // Setup periodic updates
+                    setInterval(() => {
+                        registration.update();
+                        console.log('Checking for service worker updates...');
+                    }, 60 * 60 * 1000); // Check every hour
                 })
                 .catch(error => {
                     console.log('ServiceWorker registration failed:', error);
                 });
             });
+            
+            // Handle service worker updates
+            let refreshing;
+            navigator.serviceWorker.addEventListener('controllerchange', function() {
+                if (refreshing) return;
+                refreshing = true;
+                
+                // Ask user if they want to refresh for new version
+                if (confirm('New app version is available. Would you like to update now?')) {
+                    window.location.reload();
+                }
+            });
         }
     </script>
 
+    <!-- Debug script (only used during development) -->
     <script type="module" src="js/debug.js"></script>
 </body>
 </html>

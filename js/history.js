@@ -1,635 +1,712 @@
 /**
  * HeavyHITR - History Module
- * Handles workout history tracking and statistics
+ * Manages workout history, statistics, and calendar view
  * @author danweboptic
- * @lastUpdated 2025-03-21 15:30:45
+ * @lastUpdated 2025-03-24 15:17:07
  */
 
-import { workoutConfig, workoutState } from './settings.js';
-import { formatTime, formatDate, capitalizeFirstLetter } from './utils.js';
+import { formatDate, formatTime, formatRelativeDate, calculateCaloriesBurned } from './utils.js';
+import { workoutConfig, appSettings } from './settings.js';
 
-// Get workout history from localStorage
-export function getWorkoutHistory() {
-    const savedHistory = localStorage.getItem('heavyhitr-workout-history');
-    return savedHistory ? JSON.parse(savedHistory) : [];
-}
+// Constants
+const HISTORY_STORAGE_KEY = 'heavyhitr-workout-history';
 
-// Save current workout to history
-export function saveWorkoutHistory() {
-    // Get existing workout history
-    const workoutHistory = getWorkoutHistory();
-
-    // Create new workout entry with comprehensive data
-    const newWorkout = {
-        id: Date.now().toString(),
-        date: new Date().toISOString(),
-        type: workoutConfig.workoutType,
-        difficulty: workoutConfig.difficulty,
-        rounds: workoutState.currentRound,
-        totalRounds: workoutConfig.rounds,
-        totalTime: workoutState.totalTime,
-        roundLength: workoutConfig.roundLength,
-        breakLength: workoutConfig.breakLength,
-        completionPercentage: Math.round((workoutState.currentRound / workoutConfig.rounds) * 100),
-        caloriesBurned: calculateCaloriesBurned()
-    };
-
-    // Add to history
-    workoutHistory.push(newWorkout);
-
-    // Save to localStorage (limit to last 100 workouts to save space)
-    if (workoutHistory.length > 100) {
-        workoutHistory.shift(); // Remove oldest workout
-    }
-
-    localStorage.setItem('heavyhitr-workout-history', JSON.stringify(workoutHistory));
-
-    console.log('Workout saved to history:', newWorkout);
-    return newWorkout;
-}
-
-// Calculate estimated calories burned based on workout parameters
-function calculateCaloriesBurned() {
-    // Boxing MET value ranges from 7-9 depending on intensity
-    let metValue;
-
-    switch (workoutConfig.difficulty) {
-        case 'beginner':
-            metValue = 7;
-            break;
-        case 'intermediate':
-            metValue = 8;
-            break;
-        case 'advanced':
-            metValue = 9;
-            break;
-        default:
-            metValue = 8;
-    }
-
-    // Calories = MET × weight (kg) × duration (hours)
-    // Using average weight of 70kg if not specified in settings
-    const weightKg = 70;
-
-    // Convert seconds to hours
-    const durationHours = workoutState.totalTime / 3600;
-
-    // Calculate and round to nearest integer
-    return Math.round(metValue * weightKg * durationHours);
-}
-
-// Initialize calendar with workout history
+/**
+ * Initialize the workout history calendar
+ */
 export function initCalendar() {
-    const calendarGrid = document.getElementById('calendar-grid');
-    if (!calendarGrid) return;
-
-    // Clear existing calendar
-    calendarGrid.innerHTML = '';
-
-    // Get current date info
+    const calendarEl = document.getElementById('calendar-container');
+    if (!calendarEl) return;
+    
+    // Clear the calendar
+    calendarEl.innerHTML = '';
+    
+    // Get workout history
+    const workoutHistory = getWorkoutHistory();
+    
+    // Current date information
     const today = new Date();
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
+    
+    // Create the calendar
+    renderCalendar(calendarEl, currentMonth, currentYear, workoutHistory);
+    
+    // Add month navigation
+    setupCalendarNavigation(calendarEl, workoutHistory);
+}
 
-    // Update month header
-    const monthHeader = document.querySelector('.month-header');
-    if (monthHeader) {
-        monthHeader.textContent = new Date(currentYear, currentMonth).toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric'
-        });
-    }
-
-    // Number of days in current month
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-    // First day of month (0 = Sunday, 1 = Monday, etc.)
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-
-    // Add empty cells for days before first day of month
+/**
+ * Render the calendar for a specific month
+ * @param {HTMLElement} container - The container element for the calendar
+ * @param {number} month - The month to render (0-11)
+ * @param {number} year - The year to render
+ * @param {Array} workoutHistory - Array of workout history objects
+ */
+function renderCalendar(container, month, year, workoutHistory) {
+    // Create month header
+    const monthHeader = document.createElement('div');
+    monthHeader.className = 'month-header';
+    monthHeader.innerHTML = `
+        <button class="month-nav prev" aria-label="Previous month">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+        </button>
+        <span>${new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+        <button class="month-nav next" aria-label="Next month">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </button>
+    `;
+    container.appendChild(monthHeader);
+    
+    // Create weekday header
+    const weekdaysEl = document.createElement('div');
+    weekdaysEl.className = 'weekdays';
+    const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    weekdays.forEach(day => {
+        const dayEl = document.createElement('div');
+        dayEl.textContent = day;
+        weekdaysEl.appendChild(dayEl);
+    });
+    container.appendChild(weekdaysEl);
+    
+    // Create grid container
+    const gridEl = document.createElement('div');
+    gridEl.className = 'calendar-grid';
+    container.appendChild(gridEl);
+    
+    // Calculate first day of month
+    const firstDay = new Date(year, month, 1).getDay();
+    
+    // Calculate days in month
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Create day cells
     for (let i = 0; i < firstDay; i++) {
-        const emptyCell = document.createElement('div');
-        emptyCell.className = 'calendar-day';
-        calendarGrid.appendChild(emptyCell);
+        addDayCell(gridEl, '', false, false);
     }
-
-    // Get workout history from localStorage
-    const workoutHistory = getWorkoutHistory();
-
-    // Get workout dates in this month (for highlighting)
-    const workoutDatesThisMonth = new Map();
-
+    
+    // Map workout dates for easy lookup
+    const workoutDates = {};
     workoutHistory.forEach(workout => {
         const workoutDate = new Date(workout.date);
-        if (workoutDate.getMonth() === currentMonth &&
-            workoutDate.getFullYear() === currentYear) {
-
-            const day = workoutDate.getDate();
-
-            // If we already have a workout for this day, increment the count
-            if (workoutDatesThisMonth.has(day)) {
-                workoutDatesThisMonth.set(day, workoutDatesThisMonth.get(day) + 1);
-            } else {
-                workoutDatesThisMonth.set(day, 1);
-            }
+        const dateKey = `${workoutDate.getFullYear()}-${workoutDate.getMonth()}-${workoutDate.getDate()}`;
+        if (!workoutDates[dateKey]) {
+            workoutDates[dateKey] = [];
         }
+        workoutDates[dateKey].push(workout);
     });
-
-    // Add calendar days
+    
+    const today = new Date();
+    
     for (let day = 1; day <= daysInMonth; day++) {
-        const dayCell = document.createElement('div');
-        dayCell.className = 'calendar-day';
-        dayCell.textContent = day;
+        const currentDate = new Date(year, month, day);
+        const isToday = currentDate.getDate() === today.getDate() && 
+                         currentDate.getMonth() === today.getMonth() && 
+                         currentDate.getFullYear() === today.getFullYear();
+        
+        const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${currentDate.getDate()}`;
+        const hasWorkout = !!workoutDates[dateKey];
+        
+        addDayCell(gridEl, day, isToday, hasWorkout, workoutDates[dateKey]);
+    }
+}
 
-        // Highlight today
-        if (day === today.getDate() &&
-            currentMonth === today.getMonth() &&
-            currentYear === today.getFullYear()) {
-            dayCell.classList.add('today');
+/**
+ * Add a day cell to the calendar grid
+ * @param {HTMLElement} container - The grid container
+ * @param {number|string} day - The day number or empty string for placeholder
+ * @param {boolean} isToday - Whether this cell represents today
+ * @param {boolean} hasWorkout - Whether a workout was completed on this day
+ * @param {Array} workouts - Array of workouts for this day
+ */
+function addDayCell(container, day, isToday, hasWorkout, workouts = []) {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-day';
+    
+    if (day === '') {
+        cell.classList.add('empty');
+    } else {
+        cell.textContent = day;
+        
+        if (isToday) {
+            cell.classList.add('today');
         }
-
-        // Highlight days with workouts
-        if (workoutDatesThisMonth.has(day)) {
-            dayCell.classList.add('has-workout');
-
-            // Add count indicator for multiple workouts
-            const workoutCount = workoutDatesThisMonth.get(day);
-            if (workoutCount > 1) {
-                const countBadge = document.createElement('span');
-                countBadge.className = 'workout-count';
-                countBadge.textContent = workoutCount;
-                dayCell.appendChild(countBadge);
-            }
-
-            // Add click handler to show workouts for that day
-            dayCell.addEventListener('click', () => {
-                showWorkoutsForDay(currentYear, currentMonth, day);
+        
+        if (hasWorkout) {
+            cell.classList.add('workout-day');
+            
+            // Add workout indicator(s)
+            const indicatorContainer = document.createElement('div');
+            indicatorContainer.className = 'workout-indicators';
+            
+            // Add indicators based on workout types
+            const workoutTypes = new Set();
+            workouts.forEach(workout => {
+                workoutTypes.add(workout.workoutType);
             });
+            
+            workoutTypes.forEach(type => {
+                const indicator = document.createElement('div');
+                indicator.className = `workout-indicator ${type}`;
+                indicatorContainer.appendChild(indicator);
+            });
+            
+            cell.appendChild(indicatorContainer);
+            
+            // Add click handler to show workout details
+            cell.addEventListener('click', () => {
+                showWorkoutDetails(workouts);
+            });
+            
+            // Add aria labels for accessibility
+            cell.setAttribute('role', 'button');
+            cell.setAttribute('aria-label', `Day ${day}, ${workouts.length} workout${workouts.length > 1 ? 's' : ''} completed. Click for details.`);
+            cell.setAttribute('tabindex', '0');
         }
-
-        calendarGrid.appendChild(dayCell);
     }
-
-    // Update workout history list
-    updateWorkoutHistoryList(workoutHistory);
+    
+    container.appendChild(cell);
 }
 
-// Show workouts for a specific day in a modal
-function showWorkoutsForDay(year, month, day) {
-    // Get workout history
-    const workoutHistory = getWorkoutHistory();
-
-    // Filter workouts for the specified day
-    const selectedDate = new Date(year, month, day);
-    const workoutsOnDay = workoutHistory.filter(workout => {
-        const workoutDate = new Date(workout.date);
-        return workoutDate.getFullYear() === year &&
-               workoutDate.getMonth() === month &&
-               workoutDate.getDate() === day;
-    });
-
-    if (workoutsOnDay.length === 0) return;
-
-    // Create modal content
-    const dateString = selectedDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-
-    let modalContent = `
-        <div class="modal-header">
-            <h2>${dateString}</h2>
-            <p>${workoutsOnDay.length} workout${workoutsOnDay.length > 1 ? 's' : ''}</p>
-        </div>
-        <div class="modal-body">
-    `;
-
-    // Add each workout
-    workoutsOnDay.forEach(workout => {
-        const time = new Date(workout.date).toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit'
+/**
+ * Setup calendar navigation (prev/next month buttons)
+ * @param {HTMLElement} container - The calendar container
+ * @param {Array} workoutHistory - Array of workout history objects
+ */
+function setupCalendarNavigation(container, workoutHistory) {
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+    
+    // Get the navigation buttons
+    const prevButton = container.querySelector('.month-nav.prev');
+    const nextButton = container.querySelector('.month-nav.next');
+    
+    if (prevButton && nextButton) {
+        // Previous month
+        prevButton.addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            
+            // Clear and re-render
+            const calendarGrid = container.querySelector('.calendar-grid');
+            const monthHeader = container.querySelector('.month-header span');
+            
+            if (calendarGrid && monthHeader) {
+                calendarGrid.innerHTML = '';
+                monthHeader.textContent = new Date(currentYear, currentMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                
+                // Calculate first day of month
+                const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+                
+                // Calculate days in month
+                const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+                
+                // Create day cells (reusing existing code logic)
+                const workoutDates = {};
+                workoutHistory.forEach(workout => {
+                    const workoutDate = new Date(workout.date);
+                    const dateKey = `${workoutDate.getFullYear()}-${workoutDate.getMonth()}-${workoutDate.getDate()}`;
+                    if (!workoutDates[dateKey]) {
+                        workoutDates[dateKey] = [];
+                    }
+                    workoutDates[dateKey].push(workout);
+                });
+                
+                const today = new Date();
+                
+                // Add empty cells for days before the 1st
+                for (let i = 0; i < firstDay; i++) {
+                    addDayCell(calendarGrid, '', false, false);
+                }
+                
+                // Add cells for days in the month
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const currentDate = new Date(currentYear, currentMonth, day);
+                    const isToday = currentDate.getDate() === today.getDate() && 
+                                   currentDate.getMonth() === today.getMonth() && 
+                                   currentDate.getFullYear() === today.getFullYear();
+                    
+                    const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${currentDate.getDate()}`;
+                    const hasWorkout = !!workoutDates[dateKey];
+                    
+                    addDayCell(calendarGrid, day, isToday, hasWorkout, workoutDates[dateKey]);
+                }
+            }
         });
+        
+        // Next month (similar logic to previous month)
+        nextButton.addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            
+            // Clear and re-render (same code as above)
+            const calendarGrid = container.querySelector('.calendar-grid');
+            const monthHeader = container.querySelector('.month-header span');
+            
+            if (calendarGrid && monthHeader) {
+                calendarGrid.innerHTML = '';
+                monthHeader.textContent = new Date(currentYear, currentMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                
+                // Calculate first day of month
+                const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+                
+                // Calculate days in month
+                const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+                
+                // Create day cells (reusing existing code logic)
+                const workoutDates = {};
+                workoutHistory.forEach(workout => {
+                    const workoutDate = new Date(workout.date);
+                    const dateKey = `${workoutDate.getFullYear()}-${workoutDate.getMonth()}-${workoutDate.getDate()}`;
+                    if (!workoutDates[dateKey]) {
+                        workoutDates[dateKey] = [];
+                    }
+                    workoutDates[dateKey].push(workout);
+                });
+                
+                const today = new Date();
+                
+                // Add empty cells for days before the 1st
+                for (let i = 0; i < firstDay; i++) {
+                    addDayCell(calendarGrid, '', false, false);
+                }
+                
+                // Add cells for days in the month
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const currentDate = new Date(currentYear, currentMonth, day);
+                    const isToday = currentDate.getDate() === today.getDate() && 
+                                   currentDate.getMonth() === today.getMonth() && 
+                                   currentDate.getFullYear() === today.getFullYear();
+                    
+                    const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${currentDate.getDate()}`;
+                    const hasWorkout = !!workoutDates[dateKey];
+                    
+                    addDayCell(calendarGrid, day, isToday, hasWorkout, workoutDates[dateKey]);
+                }
+            }
+        });
+    }
+}
 
-        modalContent += `
-            <div class="modal-workout-item">
-                <div class="modal-workout-header">
-                    <h3>${capitalizeFirstLetter(workout.difficulty)} ${capitalizeFirstLetter(workout.type)}</h3>
-                    <span>${time}</span>
-                </div>
-                <div class="modal-workout-details">
-                    <div class="modal-workout-stat">
-                        <span class="stat-label">Rounds</span>
-                        <span class="stat-value">${workout.rounds}/${workout.totalRounds}</span>
-                    </div>
-                    <div class="modal-workout-stat">
-                        <span class="stat-label">Time</span>
-                        <span class="stat-value">${formatTime(workout.totalTime)}</span>
-                    </div>
-                    <div class="modal-workout-stat">
-                        <span class="stat-label">Calories</span>
-                        <span class="stat-value">${workout.caloriesBurned || '-'}</span>
-                    </div>
-                </div>
-                <div class="modal-workout-actions">
-                    <button class="repeat-workout-btn" data-workout-id="${workout.id}">Repeat</button>
-                </div>
-            </div>
-        `;
-    });
-
-    modalContent += `
-        </div>
-        <div class="modal-footer">
-            <button id="close-modal-btn">Close</button>
-        </div>
-    `;
-
-    // Show the modal
+/**
+ * Show workout details for a specific day
+ * @param {Array} workouts - Array of workouts for the selected day
+ */
+function showWorkoutDetails(workouts) {
+    if (!workouts || workouts.length === 0) return;
+    
+    // Create modal for workout details
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'workout-details-modal';
+    
+    // Get the date for the header
+    const workoutDate = new Date(workouts[0].date);
+    const formattedDate = formatRelativeDate(workoutDate);
+    
+    // Create modal content
     modal.innerHTML = `
-        <div class="modal-overlay"></div>
         <div class="modal-content">
-            ${modalContent}
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    // Add event listeners
-    setTimeout(() => {
-        modal.classList.add('active');
-    }, 10);
-
-    const closeBtn = modal.querySelector('#close-modal-btn');
-    closeBtn.addEventListener('click', () => {
-        modal.classList.remove('active');
-        setTimeout(() => {
-            modal.remove();
-        }, 300);
-    });
-
-    const repeatBtns = modal.querySelectorAll('.repeat-workout-btn');
-    repeatBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const workoutId = btn.dataset.workoutId;
-            repeatWorkout(workoutId);
-            modal.classList.remove('active');
-            setTimeout(() => {
-                modal.remove();
-            }, 300);
-        });
-    });
-}
-
-// Update workout history list in UI
-export function updateWorkoutHistoryList(workoutHistory = null) {
-    const historyContainer = document.querySelector('.workout-history');
-    if (!historyContainer) return;
-
-    // Get history if not provided
-    if (!workoutHistory) {
-        workoutHistory = getWorkoutHistory();
-    }
-
-    // Clear existing history
-    historyContainer.innerHTML = '';
-
-    // Get latest 5 workouts
-    const recentWorkouts = workoutHistory
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 5);
-
-    // If no workouts yet
-    if (recentWorkouts.length === 0) {
-        const emptyMessage = document.createElement('div');
-        emptyMessage.className = 'text-center text-gray-400 py-4';
-        emptyMessage.textContent = 'No workout history yet. Complete your first workout!';
-        historyContainer.appendChild(emptyMessage);
-        return;
-    }
-
-    // Add workout history items
-    recentWorkouts.forEach(workout => {
-        // Format date for display
-        const displayDate = getRelativeDateDisplay(new Date(workout.date));
-
-        const historyItem = document.createElement('div');
-        historyItem.className = 'history-item';
-        historyItem.innerHTML = `
-            <div class="history-date">${displayDate}</div>
-            <div class="history-workout">
-                <div class="history-workout-title">${capitalizeFirstLetter(workout.difficulty)} ${capitalizeFirstLetter(workout.type)}</div>
-                <div class="history-workout-details">
-                    <span class="detail-chip">${workout.rounds} rounds</span>
-                    <span class="detail-chip">${formatTime(workout.totalTime)}</span>
-                    ${workout.caloriesBurned ? `<span class="detail-chip">${workout.caloriesBurned} cal</span>` : ''}
-                </div>
-            </div>
-            <div class="history-action">
-                <button class="icon-btn" data-workout-id="${workout.id}" title="Repeat this workout">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <div class="modal-header">
+                <h2>${formattedDate} Workouts</h2>
+                <button class="close-modal" aria-label="Close workout details">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
-        `;
-
-        // Add repeat workout capability
-        const repeatBtn = historyItem.querySelector('.icon-btn');
-        repeatBtn.addEventListener('click', () => {
-            repeatWorkout(workout.id);
+            <div class="modal-body">
+                <div class="workouts-list">
+                    ${workouts.map((workout, index) => `
+                        <div class="workout-item ${workout.workoutType}">
+                            <div class="workout-header">
+                                <h3>${capitalizeFirstLetter(workout.workoutType)} Workout</h3>
+                                <span class="workout-time">${new Date(workout.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <div class="workout-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">Difficulty</span>
+                                    <span class="detail-value">${capitalizeFirstLetter(workout.difficulty)}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Duration</span>
+                                    <span class="detail-value">${formatTime(workout.duration)}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Rounds</span>
+                                    <span class="detail-value">${workout.rounds} rounds</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Calories</span>
+                                    <span class="detail-value">${workout.calories || '---'} kcal</span>
+                                </div>
+                            </div>
+                            <div class="workout-actions">
+                                <button class="repeat-workout-btn" data-index="${index}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Repeat Workout
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to the body
+    document.body.appendChild(modal);
+    
+    // Add event listener to close button
+    const closeBtn = modal.querySelector('.close-modal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('fade-out');
+            setTimeout(() => {
+                document.body.removeChild(modal);
+            }, 300);
         });
-
-        historyContainer.appendChild(historyItem);
+    }
+    
+    // Add event listeners to repeat workout buttons
+    const repeatBtns = modal.querySelectorAll('.repeat-workout-btn');
+    repeatBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = btn.dataset.index;
+            repeatWorkout(workouts[index]);
+            // Close the modal
+            modal.classList.add('fade-out');
+            setTimeout(() => {
+                document.body.removeChild(modal);
+            }, 300);
+        });
     });
-
-    // Update workout stats
-    updateWorkoutStats(workoutHistory);
-}
-
-// Helper function to get relative date display
-function getRelativeDateDisplay(date) {
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-        return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-        return 'Yesterday';
-    } else {
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric'
-        });
-    }
-}
-
-// Update workout statistics
-export function updateWorkoutStats(workoutHistory = null) {
-    // Find stat elements
-    const workoutCountElement = document.querySelector('.stats-summary .stat-item:nth-child(1) .stat-value');
-    const totalMinutesElement = document.querySelector('.stats-summary .stat-item:nth-child(2) .stat-value');
-    const totalRoundsElement = document.querySelector('.stats-summary .stat-item:nth-child(3) .stat-value');
-
-    if (!workoutCountElement || !totalMinutesElement || !totalRoundsElement) return;
-
-    // Get history if not provided
-    if (!workoutHistory) {
-        workoutHistory = getWorkoutHistory();
-    }
-
-    // Calculate stats
-    const workoutCount = workoutHistory.length;
-    const totalMinutes = Math.floor(workoutHistory.reduce((total, workout) => total + (workout.totalTime || 0), 0) / 60);
-    const totalRounds = workoutHistory.reduce((total, workout) => total + (workout.rounds || 0), 0);
-
-    // Update UI
-    workoutCountElement.textContent = workoutCount;
-    totalMinutesElement.textContent = totalMinutes;
-    totalRoundsElement.textContent = totalRounds;
-
-    // Initialize stats charts
-    initStatsCharts(workoutHistory);
-}
-
-// Repeat a previous workout
-export function repeatWorkout(workoutId) {
-    // Get workout history
-    const workoutHistory = getWorkoutHistory();
-
-    // Find the selected workout
-    const workout = workoutHistory.find(w => w.id === workoutId);
-
-    if (workout) {
-        // Update workout config with the settings from this workout
-        Object.assign(workoutConfig, {
-            workoutType: workout.type,
-            difficulty: workout.difficulty,
-            rounds: workout.totalRounds,
-            roundLength: workout.roundLength,
-            breakLength: workout.breakLength
-        });
-
-        // Save these settings
-        import('./settings.js').then(module => {
-            module.saveWorkoutConfig();
-        });
-
-        // Navigate to workouts tab and update UI
-        const workoutsTab = document.getElementById('tab-workouts');
-        if (workoutsTab) {
-            workoutsTab.click();
-
-            // Also update the UI to reflect these changes
-            document.querySelectorAll('.category-card').forEach(card => {
-                card.classList.remove('active');
-                if (card.dataset.type === workout.type) {
-                    card.classList.add('active');
-                }
-            });
-
-            document.querySelectorAll('.difficulty-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.level === workout.difficulty) {
-                    btn.classList.add('active');
-                }
-            });
-
-            const roundsSlider = document.getElementById('rounds');
-            const roundsValue = document.getElementById('rounds-value');
-            if (roundsSlider && roundsValue) {
-                roundsSlider.value = workout.totalRounds;
-                roundsValue.textContent = workout.totalRounds;
-            }
-
-            const roundLengthSlider = document.getElementById('round-length');
-            const roundLengthValue = document.getElementById('round-length-value');
-            if (roundLengthSlider && roundLengthValue) {
-                roundLengthSlider.value = workout.roundLength;
-                roundLengthValue.textContent = formatTime(workout.roundLength);
-            }
-
-            const breakLengthSlider = document.getElementById('break-length');
-            const breakLengthValue = document.getElementById('break-length-value');
-            if (breakLengthSlider && breakLengthValue) {
-                breakLengthSlider.value = workout.breakLength;
-                breakLengthValue.textContent = formatTime(workout.breakLength);
-            }
+    
+    // Show modal with animation
+    setTimeout(() => {
+        modal.classList.add('active');
+    }, 10);
+    
+    // Close when clicking outside the modal content
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.add('fade-out');
+            setTimeout(() => {
+                document.body.removeChild(modal);
+            }, 300);
         }
+    });
+    
+    // Close with ESC key
+    document.addEventListener('keydown', function escHandler(e) {
+        if (e.key === 'Escape' && document.body.contains(modal)) {
+            modal.classList.add('fade-out');
+            setTimeout(() => {
+                document.body.removeChild(modal);
+            }, 300);
+            document.removeEventListener('keydown', escHandler);
+        }
+    });
+}
 
-        alert(`Workout loaded: ${capitalizeFirstLetter(workout.difficulty)} ${capitalizeFirstLetter(workout.type)}`);
+/**
+ * Save the current workout to history
+ * @returns {Object} The saved workout summary
+ */
+export function saveWorkoutHistory() {
+    // Get workout details
+    const workoutSummary = {
+        date: new Date().toISOString(),
+        workoutType: workoutConfig.workoutType,
+        difficulty: workoutConfig.difficulty,
+        rounds: workoutState.currentRound,
+        duration: workoutState.totalTime,
+        roundLength: workoutConfig.roundLength,
+        breakLength: workoutConfig.breakLength,
+        calories: calculateCaloriesBurned(workoutState.totalTime, appSettings.weight, workoutConfig.difficulty),
+        synced: false
+    };
+    
+    // Get existing history
+    const history = getWorkoutHistory();
+    
+    // Add new workout to the beginning of the array
+    history.unshift(workoutSummary);
+    
+    // Save to localStorage
+    try {
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+        
+        // Schedule background sync if supported
+        scheduleBackgroundSync();
+    } catch (error) {
+        console.error('Error saving workout history:', error);
+    }
+    
+    // Update stats after saving
+    updateWorkoutStats();
+    
+    return workoutSummary;
+}
+
+/**
+ * Get the workout history array
+ * @returns {Array} Array of workout history objects
+ */
+export function getWorkoutHistory() {
+    try {
+        const history = localStorage.getItem(HISTORY_STORAGE_KEY);
+        return history ? JSON.parse(history) : [];
+    } catch (error) {
+        console.error('Error getting workout history:', error);
+        return [];
     }
 }
 
-// Initialize statistics charts
-export function initStatsCharts(workoutHistory = null) {
-    // Get the charts container
-    const statsContainer = document.getElementById('stats-charts');
-    if (!statsContainer) return;
-
-    // Get history if not provided
-    if (!workoutHistory) {
-        workoutHistory = getWorkoutHistory();
-    }
-
-    // If not enough data, show message
-    if (workoutHistory.length < 2) {
-        statsContainer.innerHTML = '<div class="text-center text-gray-400 py-4">Complete more workouts to see detailed statistics</div>';
-        return;
-    }
-
-    // Prepare data for charts
-    const last14Days = [];
-    const today = new Date();
-
-    // Create array of last 14 days
-    for (let i = 13; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(today.getDate() - i);
-        date.setHours(0, 0, 0, 0);
-        last14Days.push({
-            date: date,
-            workouts: 0,
-            time: 0,
-            rounds: 0
+/**
+ * Schedule background sync for workout data
+ */
+function scheduleBackgroundSync() {
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+        navigator.serviceWorker.ready.then(registration => {
+            registration.sync.register('sync-workout-data')
+                .catch(err => {
+                    console.error('Background sync registration failed:', err);
+                });
         });
     }
+}
 
-    // Fill in workout data
-    workoutHistory.forEach(workout => {
+/**
+ * Update workout statistics display
+ */
+export function updateWorkoutStats() {
+    const totalWorkoutsEl = document.getElementById('total-workouts');
+    const weekWorkoutsEl = document.getElementById('week-workouts');
+    const streakCountEl = document.getElementById('streak-count');
+    
+    if (!totalWorkoutsEl || !weekWorkoutsEl || !streakCountEl) return;
+    
+    // Get workout history
+    const history = getWorkoutHistory();
+    
+    // Calculate total workouts
+    const totalWorkouts = history.length;
+    
+    // Calculate workouts this week
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday as first day
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const weekWorkouts = history.filter(workout => {
+        const workoutDate = new Date(workout.date);
+        return workoutDate >= startOfWeek;
+    }).length;
+    
+    // Calculate streak
+    const streak = calculateStreak(history);
+    
+    // Update elements
+    totalWorkoutsEl.textContent = totalWorkouts;
+    weekWorkoutsEl.textContent = weekWorkouts;
+    streakCountEl.textContent = streak;
+}
+
+/**
+ * Calculate the current streak of consecutive workout days
+ * @param {Array} history - Array of workout history objects
+ * @returns {number} The current streak count
+ */
+function calculateStreak(history) {
+    if (history.length === 0) return 0;
+    
+    // Sort history by date (newest first)
+    const sortedHistory = [...history].sort((a, b) => {
+        return new Date(b.date) - new Date(a.date);
+    });
+    
+    // Initialize variables
+    let streak = 0;
+    let currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    
+    // Check if there's a workout today
+    const todayWorkout = sortedHistory.find(workout => {
         const workoutDate = new Date(workout.date);
         workoutDate.setHours(0, 0, 0, 0);
-
-        for (let i = 0; i < last14Days.length; i++) {
-            if (workoutDate.getTime() === last14Days[i].date.getTime()) {
-                last14Days[i].workouts++;
-                last14Days[i].time += workout.totalTime || 0;
-                last14Days[i].rounds += workout.rounds || 0;
-                break;
-            }
-        }
+        return workoutDate.getTime() === currentDate.getTime();
     });
-
-    // Format data for Chart.js
-    const labels = last14Days.map(day =>
-        day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    );
-
-    const workoutsData = last14Days.map(day => day.workouts);
-    const timeData = last14Days.map(day => Math.floor(day.time / 60)); // Convert seconds to minutes
-    const roundsData = last14Days.map(day => day.rounds);
-
-    // Create the charts container HTML
-    statsContainer.innerHTML = `
-        <div class="chart-header">Activity Over Last 14 Days</div>
-        <canvas id="activity-chart" height="200"></canvas>
-        <div class="chart-header mt-4">Workout Type Distribution</div>
-        <canvas id="types-chart" height="200"></canvas>
-    `;
-
-    // Wait for next tick to ensure canvas is in the DOM
-    setTimeout(() => {
-        // Create the activity chart using Chart.js global object
-        const activityCtx = document.getElementById('activity-chart').getContext('2d');
-
-        new Chart(activityCtx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Workout Minutes',
-                    data: timeData,
-                    backgroundColor: 'rgba(117, 250, 194, 0.7)',
-                    borderColor: 'rgba(117, 250, 194, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        },
-                        ticks: {
-                            color: '#8B97A8'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            color: '#8B97A8'
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: true,
-                        labels: {
-                            color: '#E1E1E1'
-                        }
-                    }
-                }
-            }
+    
+    // If no workout today, check yesterday
+    if (!todayWorkout) {
+        const yesterday = new Date(currentDate);
+        yesterday.setDate(currentDate.getDate() - 1);
+        
+        const yesterdayWorkout = sortedHistory.find(workout => {
+            const workoutDate = new Date(workout.date);
+            workoutDate.setHours(0, 0, 0, 0);
+            return workoutDate.getTime() === yesterday.getTime();
         });
-
-        // Workout type distribution chart
-        const workoutTypes = {};
-        workoutHistory.forEach(workout => {
-            const type = workout.type || 'unknown';
-            workoutTypes[type] = (workoutTypes[type] || 0) + 1;
-        });
-
-        const typesCtx = document.getElementById('types-chart').getContext('2d');
-
-        new Chart(typesCtx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(workoutTypes).map(capitalizeFirstLetter),
-                datasets: [{
-                    data: Object.values(workoutTypes),
-                    backgroundColor: [
-                        'rgba(117, 250, 194, 0.7)',
-                        'rgba(75, 192, 192, 0.7)',
-                        'rgba(54, 162, 235, 0.7)',
-                        'rgba(153, 102, 255, 0.7)'
-                    ],
-                    borderColor: 'rgba(10, 21, 40, 1)',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            color: '#E1E1E1'
-                        }
-                    }
-                }
-            }
-        });
-    }, 0);
+        
+        // If no workout yesterday either, streak is 0
+        if (!yesterdayWorkout) return 0;
+        
+        // Start counting from yesterday
+        currentDate = yesterday;
+    }
+    
+    // Create a map of dates with workouts
+    const workoutDates = {};
+    sortedHistory.forEach(workout => {
+        const workoutDate = new Date(workout.date);
+        workoutDate.setHours(0, 0, 0, 0);
+        const dateKey = workoutDate.getTime();
+        workoutDates[dateKey] = true;
+    });
+    
+    // Count streak days
+    let checkDate = new Date(currentDate);
+    
+    while (true) {
+        const checkKey = checkDate.getTime();
+        
+        if (workoutDates[checkKey]) {
+            streak++;
+            
+            // Move to previous day
+            checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+            break;
+        }
+    }
+    
+    return streak;
 }
 
-// Export all functions we need
+/**
+ * Repeat a previous workout
+ * @param {Object} workout - The workout object to repeat
+ */
+export function repeatWorkout(workout) {
+    if (!workout) return;
+    
+    // Update workout config with the saved workout settings
+    workoutConfig.workoutType = workout.workoutType;
+    workoutConfig.difficulty = workout.difficulty;
+    workoutConfig.rounds = workout.rounds;
+    workoutConfig.roundLength = workout.roundLength;
+    workoutConfig.breakLength = workout.breakLength;
+    
+    // Save the updated config
+    saveWorkoutConfig();
+    
+    // Activate the workouts tab
+    window.HeavyHITR.activateTab('workouts');
+    
+    // Update UI to reflect the loaded workout
+    setTimeout(() => {
+        // Get elements
+        const categoryCards = document.querySelectorAll('.category-card');
+        const difficultyBtns = document.querySelectorAll('.difficulty-btn');
+        const roundsSlider = document.getElementById('rounds');
+        const roundsValue = document.getElementById('rounds-value');
+        const roundLengthSlider = document.getElementById('round-length');
+        const roundLengthValue = document.getElementById('round-length-value');
+        const breakLengthSlider = document.getElementById('break-length');
+        const breakLengthValue = document.getElementById('break-length-value');
+        
+        // Update category selection
+        categoryCards.forEach(card => {
+            card.classList.remove('active');
+            if (card.dataset.type === workout.workoutType) {
+                card.classList.add('active');
+            }
+        });
+        
+        // Update difficulty selection
+        difficultyBtns.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.level === workout.difficulty) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // Update slider values
+        if (roundsSlider && roundsValue) {
+            roundsSlider.value = workout.rounds;
+            roundsValue.textContent = workout.rounds;
+        }
+        
+        if (roundLengthSlider && roundLengthValue) {
+            roundLengthSlider.value = workout.roundLength;
+            roundLengthValue.textContent = formatTime(workout.roundLength);
+        }
+        
+        if (breakLengthSlider && breakLengthValue) {
+            breakLengthSlider.value = workout.breakLength;
+            breakLengthValue.textContent = formatTime(workout.breakLength);
+        }
+        
+        // Show notification
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.innerHTML = `
+            <div class="notification-content">
+                <div class="notification-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div class="notification-message">
+                    Previous ${capitalizeFirstLetter(workout.workoutType)} workout loaded
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Show notification
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
+    }, 100);
+}
+
+/**
+ * Helper function to capitalize first letter (imported from utils.js)
+ * Duplicated here to avoid circular imports
+ * @param {string} string - The string to capitalize
+ * @returns {string} The capitalized string
+ */
+function capitalizeFirstLetter(string) {
+    if (!string) return '';
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 export default {
-    getWorkoutHistory,
-    saveWorkoutHistory,
     initCalendar,
-    updateWorkoutHistoryList,
     updateWorkoutStats,
-    repeatWorkout,
-    initStatsCharts
+    saveWorkoutHistory,
+    getWorkoutHistory,
+    repeatWorkout
 };

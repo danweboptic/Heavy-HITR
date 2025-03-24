@@ -1,323 +1,320 @@
 /**
  * HeavyHITR - Voice Coach Module
- * Provides voice guidance using ResponsiveVoice.js
+ * Handles voice announcements and coaching during workouts
  * @author danweboptic
- * @lastUpdated 2025-03-24 13:36:04
+ * @lastUpdated 2025-03-24 15:37:16
  */
 
+// Import Voice Settings
 import { voiceSettings } from './settings.js';
 
-// ResponsiveVoice requires a script tag in HTML:
-// <script src="https://code.responsivevoice.org/responsivevoice.js?key=YOUR_API_KEY"></script>
+// Voice options configuration
+const voiceOptions = {
+    'en-US-female': { name: 'US English Female', voice: 'US English Female', pitch: 1.0 },
+    'en-US-male': { name: 'US English Male', voice: 'US English Male', pitch: 0.95 },
+    'en-GB-female': { name: 'UK English Female', voice: 'UK English Female', pitch: 1.0 },
+    'en-GB-male': { name: 'UK English Male', voice: 'UK English Male', pitch: 0.95 },
+    'en-AU-female': { name: 'Australian Female', voice: 'Australian Female', pitch: 1.0 }
+};
 
-// State variables
-let speakQueue = [];
+// Queue for voice announcements to prevent overlap
+const voiceQueue = [];
 let isSpeaking = false;
-let voiceInitialized = false;
+let voiceAvailable = false;
 
-// Initialize voice coach
+/**
+ * Initialize voice coach based on user settings
+ */
 export function initVoiceCoach() {
-    if (!voiceSettings.enabled) return;
+    console.log('Initializing voice coach');
 
-    if (!window.responsiveVoice) {
-        console.warn('ResponsiveVoice not loaded');
-        return false;
-    }
+    // Check if ResponsiveVoice is available
+    if (typeof responsiveVoice !== 'undefined') {
+        if (responsiveVoice.voiceSupport()) {
+            console.log('ResponsiveVoice is supported');
+            voiceAvailable = true;
 
-    // Check if ResponsiveVoice is available and not already initialized
-    try {
-        // In newer versions of ResponsiveVoice, isInitialized() doesn't exist
-        // Instead, we can check if the object exists and if speak method is available
-        if (typeof window.responsiveVoice.speak === 'function') {
-            voiceInitialized = true;
-            console.log('Voice coach initialized with ResponsiveVoice');
-            return true;
+            // Set up event listeners for ResponsiveVoice
+            responsiveVoice.addEventListener('OnReady', () => {
+                console.log('ResponsiveVoice is ready');
+            });
+
+            responsiveVoice.addEventListener('OnVoiceReady', () => {
+                console.log('Voice is ready');
+            });
         } else {
-            // If speak method isn't available, try to initialize
-            if (typeof window.responsiveVoice.init === 'function') {
-                window.responsiveVoice.init();
-                voiceInitialized = true;
-                console.log('Voice coach initialized with ResponsiveVoice');
-                return true;
-            } else {
-                console.warn('ResponsiveVoice loaded but appears to be incompatible');
-                return false;
-            }
+            console.warn('ResponsiveVoice is not fully supported in this browser');
+            voiceAvailable = false;
         }
-    } catch (error) {
-        console.error('Error initializing ResponsiveVoice:', error);
-        return false;
+    } else {
+        console.error('ResponsiveVoice library not found');
+        voiceAvailable = false;
     }
 }
 
-// Get voice name from settings
-function getVoiceName() {
-    // First check if the setting value is already a valid ResponsiveVoice voice
-    if (voiceSettings.voice && typeof voiceSettings.voice === 'string') {
-        const availableVoices = typeof window.responsiveVoice.getVoices === 'function' ?
-                               window.responsiveVoice.getVoices() : [];
+/**
+ * Process the voice queue to play announcements in sequence
+ */
+function processVoiceQueue() {
+    if (voiceQueue.length === 0 || isSpeaking) return;
 
-        if (availableVoices.some(v => v.name === voiceSettings.voice)) {
-            return voiceSettings.voice;
-        }
-    }
-
-    // Otherwise, use the mapping
-    const voiceMap = {
-        'en-US-female': 'US English Female',
-        'en-US-male': 'US English Male',
-        'en-GB-female': 'UK English Female',
-        'en-GB-male': 'UK English Male',
-        'en-AU-female': 'Australian Female'
-    };
-
-    return voiceMap[voiceSettings.voice] || 'US English Male';
-}
-
-// Speak text using ResponsiveVoice
-export function speak(text, priority = 'medium') {
-    if (!voiceSettings.enabled || !window.responsiveVoice) return;
-
-    // Safety check for undefined or null text
-    if (!text || text.includes('undefined')) {
-        console.error('Invalid speech text:', text);
-        return;
-    }
-
-    // Safety check
-    if (!voiceInitialized) {
-        initVoiceCoach();
-    }
-
-    // Clear all pending speech if high priority
-    if (priority === 'high') {
-        window.responsiveVoice.cancel();
-        speakQueue = [];
-        isSpeaking = false;
-    }
-
-    // If already speaking, add to queue unless it's low priority
-    if (isSpeaking && priority !== 'high') {
-        if (priority !== 'low') {
-            speakQueue.push({ text, priority });
-        }
-        return;
-    }
-
-    // Start speaking
     isSpeaking = true;
+    const nextItem = voiceQueue.shift();
 
-    // Speech parameters - reduced rate from 1.1 to 0.9 to make it slower and clearer
-    const params = {
-        pitch: 1,
-        rate: 0.9, // Changed from 1.1 to 0.9 for a slower, clearer voice
+    // Check if voice is enabled
+    if (!voiceSettings.enabled) {
+        isSpeaking = false;
+        processVoiceQueue(); // Process next if any
+        return;
+    }
+
+    // Check if ResponsiveVoice is available
+    if (!voiceAvailable || typeof responsiveVoice === 'undefined') {
+        console.warn('Voice coach not available');
+        isSpeaking = false;
+        processVoiceQueue(); // Process next if any
+        return;
+    }
+
+    // Get voice option based on current settings
+    const voiceOption = voiceOptions[voiceSettings.voice] || voiceOptions['en-US-female'];
+
+    // Speak the text
+    responsiveVoice.speak(nextItem.text, voiceOption.voice, {
+        pitch: voiceOption.pitch,
+        rate: 0.95, // Slightly slower for better clarity
         volume: voiceSettings.volume,
         onend: () => {
-            console.log(`Speech completed: "${text}"`);
+            // Mark as complete and process the next item in queue
+            console.log('Voice announcement complete:', nextItem.text);
             isSpeaking = false;
 
-            // Check if there's more in the queue
-            if (speakQueue.length > 0) {
-                const nextSpeech = speakQueue.shift();
-                speak(nextSpeech.text, nextSpeech.priority);
-            }
+            // Small delay between announcements for better user experience
+            setTimeout(() => {
+                processVoiceQueue();
+            }, 300);
         },
-        onerror: (e) => {
-            console.error('Speech error:', e);
+        onerror: (error) => {
+            console.error('Voice announcement error:', error);
             isSpeaking = false;
-
-            // Continue with queue even if there's an error
-            if (speakQueue.length > 0) {
-                const nextSpeech = speakQueue.shift();
-                speak(nextSpeech.text, nextSpeech.priority);
-            }
+            processVoiceQueue(); // Try the next one
         }
-    };
+    });
+}
 
-    // Start speaking with ResponsiveVoice
-    try {
-        console.log(`Speaking: "${text}"`);
-        window.responsiveVoice.speak(text, getVoiceName(), params);
-    } catch (error) {
-        console.error('ResponsiveVoice speak error:', error);
-        isSpeaking = false;
+/**
+ * Add announcement to the voice queue
+ * @param {string} text - The text to announce
+ * @param {boolean} immediate - Whether to speak immediately (clearing the queue)
+ */
+function queueAnnouncement(text, immediate = false) {
+    if (!voiceSettings.enabled || !text) return;
+
+    if (immediate) {
+        // Clear the queue for immediate announcements
+        voiceQueue.length = 0;
+
+        // Stop any current announcement
+        if (isSpeaking && typeof responsiveVoice !== 'undefined') {
+            responsiveVoice.cancel();
+            isSpeaking = false;
+        }
+    }
+
+    // Add to queue
+    voiceQueue.push({ text, timestamp: Date.now() });
+
+    // Process queue if not currently speaking
+    if (!isSpeaking) {
+        processVoiceQueue();
     }
 }
 
-// Set voice coach volume
-export function setVolume(volume) {
-    voiceSettings.volume = volume;
-    // Volume is applied per utterance when speaking
+/**
+ * Direct speak function for backward compatibility with debug.js
+ * @param {string} text - The text to speak
+ * @param {string} priority - Priority level ('high', 'normal', 'low')
+ */
+export function speak(text, priority = 'normal') {
+    // For backward compatibility with existing code
+    const immediate = priority === 'high';
+    queueAnnouncement(text, immediate);
 }
 
-// Enable/disable voice coach
-export function toggleVoiceCoach() {
-    voiceSettings.enabled = !voiceSettings.enabled;
-
-    // If disabled, clear any pending speech
-    if (!voiceSettings.enabled && window.responsiveVoice) {
-        window.responsiveVoice.cancel();
-        speakQueue = [];
-        isSpeaking = false;
-    }
-
-    return voiceSettings.enabled;
-}
-
-// Test the voice coach
-export function testVoice() {
-    speak("Voice coach test. This is how instructions will sound during your workout.", 'high');
-}
-
-// Announcement methods for workout events
-
-// Countdown announcement
-export function announceCountdown(number) {
+/**
+ * Announce countdown (3, 2, 1)
+ * @param {number} seconds - The number of seconds to announce
+ */
+export function announceCountdown(seconds) {
     if (!voiceSettings.enabled || !voiceSettings.countdown) return;
-    speak(number.toString(), 'high');
+
+    queueAnnouncement(seconds.toString(), true);
 }
 
-// Round start announcement with exercise focus - prioritizing the focus announcement
-export function announceRoundStart(roundNumber, totalRounds, workoutType, focus, instruction) {
-    if (!voiceSettings.enabled || !voiceSettings.instructions) return;
+/**
+ * Announce the start of a round
+ * @param {number} currentRound - The current round number
+ * @param {number} totalRounds - The total number of rounds
+ * @param {string} workoutType - The type of workout
+ * @param {string} focus - Optional focus area
+ * @param {string} instruction - Optional instruction
+ */
+export function announceRoundStart(currentRound, totalRounds, workoutType, focus, instruction) {
+    if (!voiceSettings.enabled) return;
 
-    // Full debug log of all arguments
-    console.log('=== VOICE ANNOUNCE ROUND START ===');
-    console.log('roundNumber:', roundNumber);
-    console.log('totalRounds:', totalRounds);
-    console.log('workoutType:', workoutType);
-    console.log('focus:', focus);
-    console.log('focus type:', typeof focus);
-    console.log('instruction:', instruction);
+    // Basic round announcement
+    let announcement = `Round ${currentRound} of ${totalRounds}. `;
 
-    // Handle case where focus or instruction might be undefined
-    const safeWorkoutType = workoutType || 'workout';
+    // Add focus and instruction if provided and instructions are enabled
+    if (voiceSettings.instructions && focus) {
+        announcement += `Focus on ${focus}. `;
 
-    // Create the message to speak
-    let message;
-
-    // Check if we have a valid focus string
-    if (focus && typeof focus === 'string' && focus.trim() !== '') {
-        // We have a proper focus string, use it directly
-        message = `Round ${roundNumber} of ${totalRounds}. ${focus}.`;
-
-        // Add instruction if available and not too long
-        if (instruction && typeof instruction === 'string' && instruction.trim() !== '') {
-            if (instruction.length < 80) { // Only add if not too long
-                message += ` ${instruction}`;
-            }
+        if (instruction) {
+            announcement += instruction;
         }
-
-        console.log("Using specific focus text:", focus);
-    } else {
-        // Use generic workout type message as fallback
-        message = `Round ${roundNumber} of ${totalRounds}. ${safeWorkoutType.charAt(0).toUpperCase() + safeWorkoutType.slice(1)} round.`;
-        console.log("Using generic workout type message");
     }
 
-    // Add a final log of what will be spoken
-    console.log('Final message to speak:', message);
-
-    // Speak the announcement
-    speak(message, 'high');
+    queueAnnouncement(announcement);
 }
 
-// Round end announcement
+/**
+ * Announce the end of a round
+ * @param {boolean} isLastRound - Whether this is the last round
+ */
 export function announceRoundEnd(isLastRound) {
-    if (!voiceSettings.enabled || !voiceSettings.instructions) return;
+    if (!voiceSettings.enabled) return;
 
     if (isLastRound) {
-        const messages = [
-            "Final round complete. Great job!",
-            "Workout complete. Well done!",
-            "You've finished all rounds. Excellent work!"
-        ];
-
-        const message = messages[Math.floor(Math.random() * messages.length)];
-        speak(message, 'high');
+        queueAnnouncement("Workout complete! Great job!");
     } else {
-        const messages = [
-            "Round complete. Rest now.",
-            "Good work. Take a break.",
-            "Round finished. Recover for the next round."
-        ];
-
-        const message = messages[Math.floor(Math.random() * messages.length)];
-        speak(message, 'medium');
+        queueAnnouncement("Round complete. Take a break.");
     }
 }
 
-// Break end announcement
+/**
+ * Announce the end of a break
+ */
 export function announceBreakEnd() {
-    if (!voiceSettings.enabled || !voiceSettings.instructions) return;
+    if (!voiceSettings.enabled) return;
 
-    const messages = [
-        "Break over. Get ready.",
-        "Prepare for the next round.",
-        "Break time finished."
-    ];
-
-    const message = messages[Math.floor(Math.random() * messages.length)];
-    speak(message, 'high');
+    queueAnnouncement("Break over. Get ready.");
 }
 
-// Encouragement announcement
+/**
+ * Announce encouragement during the workout
+ * @param {string} workoutType - The type of workout
+ */
 export function announceEncouragement(workoutType) {
     if (!voiceSettings.enabled || !voiceSettings.encouragement) return;
 
-    // Different encouragements based on workout type
-    const encouragements = {
+    // Encouragement messages based on workout type
+    const messages = {
         striking: [
-            "Keep those strikes sharp.",
-            "Great power, maintain your form.",
-            "Speed and accuracy, you're doing great."
+            "Keep your guard up!",
+            "Rotate your hips for power!",
+            "Stay light on your feet!",
+            "Snap those punches!"
         ],
         footwork: [
-            "Light on your feet, keep moving.",
-            "Maintain that footwork, looking good.",
-            "Stay balanced and mobile."
+            "Stay on your toes!",
+            "Quick, light steps!",
+            "Maintain your stance!",
+            "Control your movement!"
         ],
         defense: [
-            "Keep your guard up, good work.",
-            "Nice defensive movement.",
-            "Stay tight and focused."
+            "Keep your eyes up!",
+            "Maintain your guard!",
+            "Move your head!",
+            "Small movements, stay efficient!"
         ],
         conditioning: [
-            "Push through, keep up the pace.",
-            "You're doing great, maintain intensity.",
-            "Keep pushing, almost there."
-        ],
-        general: [
-            "You're doing great, keep it up.",
-            "Stay focused, you've got this.",
-            "Excellent work, maintain intensity."
+            "Push through!",
+            "Stay strong!",
+            "You've got this!",
+            "Maintain your pace!"
         ]
     };
 
-    // Select encouragements based on workout type or use general ones
-    const typeEncouragements = encouragements[workoutType] || encouragements.general;
-    const message = typeEncouragements[Math.floor(Math.random() * typeEncouragements.length)];
+    // Get messages for this workout type or use generic ones
+    const typeMessages = messages[workoutType] || [
+        "Keep going!",
+        "You're doing great!",
+        "Stay focused!",
+        "Maintain your intensity!"
+    ];
 
-    speak(message, 'low');
+    // Pick a random message
+    const randomMessage = typeMessages[Math.floor(Math.random() * typeMessages.length)];
+
+    queueAnnouncement(randomMessage);
 }
 
-// Halfway announcement
-export function announceHalfway() {
-    if (!voiceSettings.enabled || !voiceSettings.instructions) return;
-    speak("Halfway point", 'medium');
+/**
+ * Test the voice coach with a sample announcement
+ */
+export function testVoice() {
+    if (!voiceAvailable || typeof responsiveVoice === 'undefined') {
+        console.warn('Voice coach not available for testing');
+        alert('Voice coach not available. Please check your browser permissions and try again.');
+        return;
+    }
+
+    // Create a test message
+    const testMessage = "This is your HeavyHITR voice coach. I'll guide you through your workout.";
+
+    // Force the announcement (skip the queue)
+    const voiceOption = voiceOptions[voiceSettings.voice] || voiceOptions['en-US-female'];
+
+    // Speak test message directly
+    responsiveVoice.speak(testMessage, voiceOption.voice, {
+        pitch: voiceOption.pitch,
+        rate: 0.95,
+        volume: voiceSettings.volume
+    });
 }
 
-// Export all functions
+/**
+ * Stop all ongoing voice announcements
+ */
+export function stopAllAnnouncements() {
+    if (typeof responsiveVoice !== 'undefined') {
+        responsiveVoice.cancel();
+    }
+
+    // Clear the queue
+    voiceQueue.length = 0;
+    isSpeaking = false;
+}
+
+/**
+ * Check if voice coach is available
+ * @returns {boolean} Whether voice coach is available
+ */
+export function isVoiceCoachAvailable() {
+    return voiceAvailable;
+}
+
+/**
+ * Get list of available voices
+ * @returns {Array} Array of voice objects with id and name
+ */
+export function getAvailableVoices() {
+    return Object.entries(voiceOptions).map(([id, option]) => ({
+        id,
+        name: option.name
+    }));
+}
+
 export default {
     initVoiceCoach,
-    speak,
-    setVolume,
-    toggleVoiceCoach,
     announceCountdown,
     announceRoundStart,
     announceRoundEnd,
     announceBreakEnd,
     announceEncouragement,
-    announceHalfway,
-    testVoice
+    testVoice,
+    stopAllAnnouncements,
+    isVoiceCoachAvailable,
+    getAvailableVoices,
+    speak // Include in default export for backward compatibility
 };

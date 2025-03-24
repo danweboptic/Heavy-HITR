@@ -1,36 +1,42 @@
 {
   "name": "HeavyHITR - Boxing Workout App",
   "short_name": "HeavyHITR",
-  "description": "Boxing heavy bag workout timer and trainer",
+  "description": "Advanced boxing heavy bag workout timer and coach",
   "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#060f1f",
   "theme_color": "#75fac2",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "icons/icon-72x72.png",
       "sizes": "72x72",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-96x96.png",
       "sizes": "96x96",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-128x128.png",
       "sizes": "128x128",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-144x144.png",
       "sizes": "144x144",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-152x152.png",
       "sizes": "152x152",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-192x192.png",
@@ -39,63 +45,62 @@
       "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-384x384.png", 
+      "src": "icons/icon-384x384.png",
       "sizes": "384x384",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "screenshots": [
     {
-      "src": "screenshots/home.png",
+      "src": "screenshots/screenshot1.png",
       "sizes": "1280x720",
       "type": "image/png",
-      "form_factor": "wide",
-      "label": "Home Screen"
+      "form_factor": "narrow"
     },
     {
-      "src": "screenshots/workout.png",
+      "src": "screenshots/screenshot2.png",
       "sizes": "1280x720",
       "type": "image/png",
-      "form_factor": "wide",
-      "label": "Active Workout Screen"
-    },
-    {
-      "src": "screenshots/home-mobile.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Home Screen on Mobile"
-    },
-    {
-      "src": "screenshots/workout-mobile.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Active Workout on Mobile"
+      "form_factor": "narrow"
     }
   ],
-  "categories": ["fitness", "health", "sports"],
   "shortcuts": [
     {
       "name": "Start Workout",
       "short_name": "Workout",
-      "description": "Start a new workout session",
+      "description": "Start a new boxing workout",
       "url": "/index.html?action=start",
-      "icons": [{ "src": "icons/shortcut-workout.png", "sizes": "192x192" }]
+      "icons": [{ "src": "icons/workout-icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "History",
+      "name": "View History",
       "short_name": "History",
-      "description": "View workout history",
+      "description": "View your workout history",
       "url": "/index.html?tab=history",
-      "icons": [{ "src": "icons/shortcut-history.png", "sizes": "192x192" }]
+      "icons": [{ "src": "icons/history-icon-96x96.png", "sizes": "96x96" }]
     }
   ],
-  "orientation": "portrait",
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "categories": ["fitness", "health", "sports"],
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
+  "handle_links": "preferred",
+  "share_target": {
+    "action": "/index.html?share-target",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

@@ -1,31 +1,20 @@
 /**
  * HeavyHITR - Main Application
- * Entry point for the application
  * @author danweboptic
- * @lastUpdated 2025-03-21 15:52:10
+ * @lastUpdated 2025-03-24 16:48:55
  */
 
+// Import modules
+import { workoutConfig, appSettings, saveWorkoutConfig, saveAppSettings } from './settings.js';
+import { workoutContent, coachMessages } from './data.js';
 import {
-    workoutConfig,
-    workoutState,
-    musicSettings,
-    voiceSettings,
-    appSettings,
-    loadSettings,
-    saveWorkoutConfig,
-    saveAppSettings,
-    saveVoiceSettings
-} from './settings.js';
-
-import {
-    initCalendar,
-    updateWorkoutStats,
-    saveWorkoutHistory,
-    repeatWorkout
-} from './history.js';
-
-import { formatTime, capitalizeFirstLetter } from './utils.js';
-
+    playSound,
+    playCountdownSound,
+    startMusic,
+    stopMusic,
+    pauseMusic,
+    resumeMusic
+} from './audio.js';
 import {
     initVoiceCoach,
     announceCountdown,
@@ -33,35 +22,50 @@ import {
     announceRoundEnd,
     announceBreakEnd,
     announceEncouragement,
-    testVoice
+    testVoice,
+    stopAllAnnouncements
 } from './voice.js';
+import {
+    formatTime,
+    generateUUID,
+    calculateCaloriesBurned,
+    debounce
+} from './utils.js';
+import {
+    initCalendar,
+    updateWorkoutStats,
+    saveWorkoutHistory
+} from './history.js';
 
-// Import workout content data
-// import { workoutContent, coachMessages } from './data.js';// Test the workout content structure for striking
-import { workoutContent } from './data.js';
-console.log("Checking workout content structure:");
-if (workoutContent && workoutContent.striking && Array.isArray(workoutContent.striking)) {
-    console.log("Striking content available:", workoutContent.striking.length, "exercises");
-    console.log("First striking exercise:", workoutContent.striking[0]);
-} else {
-    console.error("Missing or invalid striking content in data.js");
-}
+// Application state
+let workoutState = {
+    isActive: false,
+    isPaused: false,
+    currentRound: 1,
+    totalRounds: 3,
+    isBreak: false,
+    currentTime: 0,
+    totalTime: 0,
+    interval: null,
+    currentFocus: null,
+    musicPlayer: null
+};
 
-// Global variables
+// Wake lock instance
+let wakeLock = null;
+
+// DOM elements cache
 const elements = {};
 
 // Initialize the application
-function init() {
-    console.log('HeavyHITR App Initializing...');
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('HeavyHITR initializing...');
 
-    // Get all DOM elements
+    // Ensure settings are initialized
+    ensureSettingsInitialized();
+
+    // Cache DOM elements
     cacheElements();
-
-    // Load saved settings
-    loadSettings();
-
-    // Initialize UI with loaded settings
-    initUI();
 
     // Set up event listeners
     setupEventListeners();
@@ -69,13 +73,69 @@ function init() {
     // Initialize voice coach
     initVoiceCoach();
 
-    // Initialize history calendar
-    initCalendar();
+    // Initialize workout UI with saved settings
+    initWorkoutUI();
 
-    // Update workout statistics
-    updateWorkoutStats();
+    // Initialize workout history view
+    initWorkoutHistory();
 
-    console.log('HeavyHITR App Initialized');
+    // Setup iOS audio context unlocking
+    setupIOSAudioUnlock();
+
+    console.log('HeavyHITR initialized');
+});
+
+// Ensure settings objects are properly initialized
+function ensureSettingsInitialized() {
+    // Set default values if not set
+    if (!workoutConfig) {
+        console.warn('Workout config not initialized, using defaults');
+        workoutConfig = {
+            workoutType: 'striking',
+            difficulty: 'intermediate',
+            rounds: 3,
+            roundLength: 180,
+            breakLength: 30,
+            showCountdown: true,
+            music: true,
+            musicVolume: 0.5
+        };
+    }
+
+    if (!appSettings) {
+        console.warn('App settings not initialized, using defaults');
+        appSettings = {
+            sound: true,
+            preventSleep: true,
+            weight: 70,
+            weightUnit: 'kg',
+            prevWeightUnit: 'kg',
+            voice: {
+                enabled: true,
+                voice: 'en-US-female',
+                volume: 0.8,
+                countdown: true,
+                encouragement: true,
+                instructions: true
+            }
+        };
+    }
+
+    // Ensure voice settings exist
+    if (!appSettings.voice) {
+        appSettings.voice = {
+            enabled: true,
+            voice: 'en-US-female',
+            volume: 0.8,
+            countdown: true,
+            encouragement: true,
+            instructions: true
+        };
+    }
+
+    // Save initialized settings
+    saveWorkoutConfig();
+    saveAppSettings();
 }
 
 // Cache DOM elements for better performance
@@ -84,28 +144,25 @@ function cacheElements() {
     elements.tabButtons = document.querySelectorAll('.tab-btn');
     elements.tabContents = document.querySelectorAll('.tab-content');
 
-    // Workout type selection
+    // Workout configuration
     elements.categoryCards = document.querySelectorAll('.category-card');
-
-    // Configuration elements
+    elements.difficultyButtons = document.querySelectorAll('.difficulty-btn');
     elements.roundsSlider = document.getElementById('rounds');
     elements.roundsValue = document.getElementById('rounds-value');
     elements.roundLengthSlider = document.getElementById('round-length');
     elements.roundLengthValue = document.getElementById('round-length-value');
     elements.breakLengthSlider = document.getElementById('break-length');
     elements.breakLengthValue = document.getElementById('break-length-value');
-    elements.difficultyBtns = document.querySelectorAll('.difficulty-btn');
+    elements.startWorkoutBtn = document.getElementById('start-workout');
 
     // Music controls
     elements.toggleMusicBtn = document.getElementById('toggle-music');
-    elements.musicStatus = document.getElementById('music-status');
+    elements.musicStatusText = document.getElementById('music-status');
     elements.musicVolumeSlider = document.getElementById('music-volume');
+    elements.currentTrackName = document.getElementById('current-track-name');
 
-    // Custom workout elements
-    elements.startCustomWorkoutBtn = document.getElementById('start-workout');
-
-    // Active workout elements
-    elements.workoutActiveOverlay = document.getElementById('workout-active');
+    // Workout active overlay
+    elements.workoutActive = document.getElementById('workout-active');
     elements.workoutTitle = document.querySelector('.workout-title');
     elements.workoutType = document.querySelector('.workout-type');
     elements.timerValue = document.getElementById('timer-value');
@@ -119,8 +176,8 @@ function cacheElements() {
     elements.endWorkoutBtn = document.getElementById('end-workout');
     elements.workoutCloseBtn = document.getElementById('workout-close');
 
-    // Workout complete elements
-    elements.workoutCompleteOverlay = document.getElementById('workout-complete');
+    // Workout complete overlay
+    elements.workoutComplete = document.getElementById('workout-complete');
     elements.summaryRounds = document.getElementById('summary-rounds');
     elements.summaryTime = document.getElementById('summary-time');
     elements.summaryLevel = document.getElementById('summary-level');
@@ -128,890 +185,1254 @@ function cacheElements() {
     elements.shareWorkoutBtn = document.getElementById('share-workout');
     elements.newWorkoutBtn = document.getElementById('new-workout');
 
-    // Settings elements
-    elements.soundEffectsToggle = document.getElementById('sound-toggle');
-    elements.voiceCoachToggle = document.getElementById('voice-toggle');
-    elements.voiceTypeSelect = document.getElementById('voice-type');
-    elements.voiceVolumeSlider = document.getElementById('voice-volume');
+    // Settings
+    elements.soundToggle = document.getElementById('sound-toggle');
+    elements.voiceToggle = document.getElementById('voice-toggle');
+    elements.voiceType = document.getElementById('voice-type');
+    elements.voiceVolume = document.getElementById('voice-volume');
     elements.voiceVolumeValue = document.getElementById('voice-volume-value');
     elements.voiceCountdownToggle = document.getElementById('voice-countdown-toggle');
     elements.voiceEncouragementToggle = document.getElementById('voice-encouragement-toggle');
     elements.voiceInstructionsToggle = document.getElementById('voice-instructions-toggle');
     elements.testVoiceBtn = document.getElementById('test-voice-btn');
-    elements.countdownTimerToggle = document.getElementById('countdown-toggle');
-    elements.screenLockToggle = document.getElementById('screenlock-toggle');
-    elements.userWeightInput = document.getElementById('user-weight');
-    elements.weightUnitSelect = document.getElementById('weight-unit');
+    elements.countdownToggle = document.getElementById('countdown-toggle');
+    elements.screenlockToggle = document.getElementById('screenlock-toggle');
+    elements.userWeight = document.getElementById('user-weight');
+    elements.weightUnit = document.getElementById('weight-unit');
     elements.clearHistoryBtn = document.getElementById('clear-history-btn');
     elements.resetSettingsBtn = document.getElementById('reset-settings-btn');
+
+    // Stats
+    elements.totalWorkouts = document.getElementById('total-workouts');
+    elements.weekWorkouts = document.getElementById('week-workouts');
+    elements.streakCount = document.getElementById('streak-count');
 }
 
-// Initialize UI with loaded settings
-function initUI() {
-    // Set initial values for sliders
-    if (elements.roundsSlider && elements.roundsValue) {
-        elements.roundsSlider.value = workoutConfig.rounds;
-        elements.roundsValue.textContent = workoutConfig.rounds;
-    }
-
-    if (elements.roundLengthSlider && elements.roundLengthValue) {
-        elements.roundLengthSlider.value = workoutConfig.roundLength;
-        elements.roundLengthValue.textContent = formatTime(workoutConfig.roundLength);
-    }
-
-    if (elements.breakLengthSlider && elements.breakLengthValue) {
-        elements.breakLengthSlider.value = workoutConfig.breakLength;
-        elements.breakLengthValue.textContent = formatTime(workoutConfig.breakLength);
-    }
-
-    // Set active difficulty button
-    if (elements.difficultyBtns) {
-        elements.difficultyBtns.forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.dataset.level === workoutConfig.difficulty) {
-                btn.classList.add('active');
-            }
-        });
-    }
-
-    // Set active workout type
-    if (elements.categoryCards) {
-        elements.categoryCards.forEach(card => {
-            card.classList.remove('active');
-            if (card.dataset.type === workoutConfig.workoutType) {
-                card.classList.add('active');
-            }
-        });
-    }
-
-    // Initialize settings controls
-
-    // Sound effects toggle
-    if (elements.soundEffectsToggle) {
-        elements.soundEffectsToggle.checked = appSettings.soundEffects;
-    }
-
-    // Voice coach settings
-    if (elements.voiceCoachToggle) {
-        elements.voiceCoachToggle.checked = voiceSettings.enabled;
-    }
-
-    if (elements.voiceTypeSelect) {
-        elements.voiceTypeSelect.value = voiceSettings.voice;
-    }
-
-    if (elements.voiceVolumeSlider && elements.voiceVolumeValue) {
-        elements.voiceVolumeSlider.value = voiceSettings.volume;
-        elements.voiceVolumeValue.textContent = `${Math.round(voiceSettings.volume * 100)}%`;
-    }
-
-    if (elements.voiceCountdownToggle) {
-        elements.voiceCountdownToggle.checked = voiceSettings.countdown;
-    }
-
-    if (elements.voiceEncouragementToggle) {
-        elements.voiceEncouragementToggle.checked = voiceSettings.encouragement;
-    }
-
-    if (elements.voiceInstructionsToggle) {
-        elements.voiceInstructionsToggle.checked = voiceSettings.instructions;
-    }
-
-    // Other workout settings
-    if (elements.countdownTimerToggle) {
-        elements.countdownTimerToggle.checked = appSettings.countdownTimer;
-    }
-
-    if (elements.screenLockToggle) {
-        elements.screenLockToggle.checked = appSettings.screenLock;
-    }
-
-    if (elements.userWeightInput && elements.weightUnitSelect) {
-        elements.userWeightInput.value = appSettings.weight || 70;
-        elements.weightUnitSelect.value = appSettings.weightUnit || 'kg';
-    }
-
-    // Initialize music controls
-    if (elements.musicStatus) {
-        elements.musicStatus.textContent = musicSettings.enabled ? 'ON' : 'OFF';
-    }
-
-    if (elements.musicVolumeSlider) {
-        elements.musicVolumeSlider.value = musicSettings.volume;
-    }
-
-    // Show/hide voice settings based on toggle state
-    const voiceSettingsContainer = document.getElementById('voice-settings');
-    if (voiceSettingsContainer) {
-        voiceSettingsContainer.style.display = voiceSettings.enabled ? 'block' : 'none';
-    }
-}
-
-// Set up all event listeners
+// Set up event listeners
 function setupEventListeners() {
     // Tab navigation
-    if (elements.tabButtons) {
-        elements.tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const tabId = button.id.replace('tab-', '');
-                activateTab(tabId);
-            });
+    elements.tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabId = button.id.replace('tab-', '');
+            activateTab(tabId);
         });
-    }
+    });
 
-    // Workout category selection
-    if (elements.categoryCards) {
-        elements.categoryCards.forEach(card => {
-            card.addEventListener('click', () => {
-                elements.categoryCards.forEach(c => c.classList.remove('active'));
-                card.classList.add('active');
-                workoutConfig.workoutType = card.dataset.type;
-                saveWorkoutConfig();
-            });
-        });
-    }
-
-    // Workout configuration sliders
-    if (elements.roundsSlider && elements.roundsValue) {
-        elements.roundsSlider.addEventListener('input', function() {
-            workoutConfig.rounds = parseInt(this.value);
-            elements.roundsValue.textContent = this.value;
+    // Category selection
+    elements.categoryCards.forEach(card => {
+        card.addEventListener('click', () => {
+            elements.categoryCards.forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            workoutConfig.workoutType = card.dataset.type;
             saveWorkoutConfig();
         });
-    }
 
-    if (elements.roundLengthSlider && elements.roundLengthValue) {
-        elements.roundLengthSlider.addEventListener('input', function() {
-            workoutConfig.roundLength = parseInt(this.value);
-            elements.roundLengthValue.textContent = formatTime(this.value);
-            saveWorkoutConfig();
-        });
-    }
-
-    if (elements.breakLengthSlider && elements.breakLengthValue) {
-        elements.breakLengthSlider.addEventListener('input', function() {
-            workoutConfig.breakLength = parseInt(this.value);
-            elements.breakLengthValue.textContent = formatTime(this.value);
-            saveWorkoutConfig();
-        });
-    }
-
-    // Difficulty buttons
-    if (elements.difficultyBtns) {
-        elements.difficultyBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                elements.difficultyBtns.forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                workoutConfig.difficulty = this.dataset.level;
-                saveWorkoutConfig();
-            });
-        });
-    }
-
-    // Voice coach settings
-    if (elements.voiceCoachToggle) {
-        elements.voiceCoachToggle.addEventListener('change', function() {
-            voiceSettings.enabled = this.checked;
-            saveVoiceSettings();
-
-            // Show/hide voice settings
-            const voiceSettingsContainer = document.getElementById('voice-settings');
-            if (voiceSettingsContainer) {
-                voiceSettingsContainer.style.display = this.checked ? 'block' : 'none';
+        // Keyboard accessibility
+        card.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                card.click();
             }
         });
-    }
+    });
 
-    if (elements.voiceTypeSelect) {
-        elements.voiceTypeSelect.addEventListener('change', function() {
-            voiceSettings.voice = this.value;
-            saveVoiceSettings();
+    // Difficulty selection
+    elements.difficultyButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            elements.difficultyButtons.forEach(b => b.classList.remove('active'));
+            button.classList.add('active');
+            workoutConfig.difficulty = button.dataset.level;
+            saveWorkoutConfig();
+        });
+    });
+
+    // Rounds slider
+    elements.roundsSlider.addEventListener('input', () => {
+        const value = elements.roundsSlider.value;
+        elements.roundsValue.textContent = value;
+        workoutConfig.rounds = parseInt(value);
+        saveWorkoutConfig();
+    });
+
+    // Round length slider
+    elements.roundLengthSlider.addEventListener('input', () => {
+        const value = elements.roundLengthSlider.value;
+        elements.roundLengthValue.textContent = formatTime(value);
+        workoutConfig.roundLength = parseInt(value);
+        saveWorkoutConfig();
+    });
+
+    // Break length slider
+    elements.breakLengthSlider.addEventListener('input', () => {
+        const value = elements.breakLengthSlider.value;
+        elements.breakLengthValue.textContent = formatTime(value);
+        workoutConfig.breakLength = parseInt(value);
+        saveWorkoutConfig();
+    });
+
+    // Music toggle
+    elements.toggleMusicBtn.addEventListener('click', () => {
+        workoutConfig.music = !workoutConfig.music;
+        updateMusicToggle();
+        saveWorkoutConfig();
+    });
+
+    // Music volume slider
+    elements.musicVolumeSlider.addEventListener('input', () => {
+        const volume = parseFloat(elements.musicVolumeSlider.value);
+        workoutConfig.musicVolume = volume;
+
+        if (workoutState.musicPlayer) {
+            workoutState.musicPlayer.volume(volume);
+        }
+
+        saveWorkoutConfig();
+    });
+
+    // Start workout button
+    elements.startWorkoutBtn.addEventListener('click', startWorkout);
+
+    // Pause workout button
+    elements.pauseWorkoutBtn.addEventListener('click', togglePauseWorkout);
+
+    // End workout button
+    elements.endWorkoutBtn.addEventListener('click', confirmEndWorkout);
+
+    // Close workout button
+    elements.workoutCloseBtn.addEventListener('click', confirmEndWorkout);
+
+    // Share workout button
+    elements.shareWorkoutBtn.addEventListener('click', shareWorkout);
+
+    // New workout button
+    elements.newWorkoutBtn.addEventListener('click', hideWorkoutComplete);
+
+    // Settings event listeners
+    setupSettingsEventListeners();
+}
+
+// Settings-specific event listeners
+function setupSettingsEventListeners() {
+    // Sound toggle
+    if (elements.soundToggle) {
+        elements.soundToggle.addEventListener('change', () => {
+            appSettings.sound = elements.soundToggle.checked;
+            saveAppSettings();
         });
     }
 
-    if (elements.voiceVolumeSlider && elements.voiceVolumeValue) {
-        elements.voiceVolumeSlider.addEventListener('input', function() {
-            voiceSettings.volume = parseFloat(this.value);
-            elements.voiceVolumeValue.textContent = `${Math.round(voiceSettings.volume * 100)}%`;
-            saveVoiceSettings();
+    // Voice toggle
+    if (elements.voiceToggle) {
+        elements.voiceToggle.addEventListener('change', () => {
+            // Ensure voice object exists
+            if (!appSettings.voice) {
+                appSettings.voice = {
+                    enabled: true,
+                    voice: 'en-US-female',
+                    volume: 0.8,
+                    countdown: true,
+                    encouragement: true,
+                    instructions: true
+                };
+            }
+
+            appSettings.voice.enabled = elements.voiceToggle.checked;
+
+            const voiceSettings = document.getElementById('voice-settings');
+            if (voiceSettings) {
+                if (elements.voiceToggle.checked) {
+                    voiceSettings.classList.remove('disabled');
+                } else {
+                    voiceSettings.classList.add('disabled');
+                }
+            }
+
+            saveAppSettings();
         });
     }
 
+    // Voice type selector
+    if (elements.voiceType) {
+        elements.voiceType.addEventListener('change', () => {
+            // Ensure voice object exists
+            if (!appSettings.voice) {
+                appSettings.voice = {
+                    enabled: true,
+                    voice: 'en-US-female',
+                    volume: 0.8,
+                    countdown: true,
+                    encouragement: true,
+                    instructions: true
+                };
+            }
+
+            appSettings.voice.voice = elements.voiceType.value;
+            saveAppSettings();
+        });
+    }
+
+    // Voice volume slider
+    if (elements.voiceVolume && elements.voiceVolumeValue) {
+        elements.voiceVolume.addEventListener('input', () => {
+            // Ensure voice object exists
+            if (!appSettings.voice) {
+                appSettings.voice = {
+                    enabled: true,
+                    voice: 'en-US-female',
+                    volume: 0.8,
+                    countdown: true,
+                    encouragement: true,
+                    instructions: true
+                };
+            }
+
+            const volume = parseFloat(elements.voiceVolume.value);
+            appSettings.voice.volume = volume;
+            elements.voiceVolumeValue.textContent = `${Math.round(volume * 100)}%`;
+            saveAppSettings();
+        });
+    }
+
+    // Voice countdown toggle
     if (elements.voiceCountdownToggle) {
-        elements.voiceCountdownToggle.addEventListener('change', function() {
-            voiceSettings.countdown = this.checked;
-            saveVoiceSettings();
+        elements.voiceCountdownToggle.addEventListener('change', () => {
+            // Ensure voice object exists
+            if (!appSettings.voice) {
+                appSettings.voice = {
+                    enabled: true,
+                    voice: 'en-US-female',
+                    volume: 0.8,
+                    countdown: true,
+                    encouragement: true,
+                    instructions: true
+                };
+            }
+
+            appSettings.voice.countdown = elements.voiceCountdownToggle.checked;
+            saveAppSettings();
         });
     }
 
+    // Voice encouragement toggle
     if (elements.voiceEncouragementToggle) {
-        elements.voiceEncouragementToggle.addEventListener('change', function() {
-            voiceSettings.encouragement = this.checked;
-            saveVoiceSettings();
+        elements.voiceEncouragementToggle.addEventListener('change', () => {
+            // Ensure voice object exists
+            if (!appSettings.voice) {
+                appSettings.voice = {
+                    enabled: true,
+                    voice: 'en-US-female',
+                    volume: 0.8,
+                    countdown: true,
+                    encouragement: true,
+                    instructions: true
+                };
+            }
+
+            appSettings.voice.encouragement = elements.voiceEncouragementToggle.checked;
+            saveAppSettings();
         });
     }
 
+    // Voice instructions toggle
     if (elements.voiceInstructionsToggle) {
-        elements.voiceInstructionsToggle.addEventListener('change', function() {
-            voiceSettings.instructions = this.checked;
-            saveVoiceSettings();
+        elements.voiceInstructionsToggle.addEventListener('change', () => {
+            // Ensure voice object exists
+            if (!appSettings.voice) {
+                appSettings.voice = {
+                    enabled: true,
+                    voice: 'en-US-female',
+                    volume: 0.8,
+                    countdown: true,
+                    encouragement: true,
+                    instructions: true
+                };
+            }
+
+            appSettings.voice.instructions = elements.voiceInstructionsToggle.checked;
+            saveAppSettings();
         });
     }
 
+    // Test voice button
     if (elements.testVoiceBtn) {
-        elements.testVoiceBtn.addEventListener('click', testVoice);
+        elements.testVoiceBtn.addEventListener('click', () => {
+            testVoice();
+        });
     }
 
-    // Other settings
-    if (elements.soundEffectsToggle) {
-        elements.soundEffectsToggle.addEventListener('change', function() {
-            appSettings.soundEffects = this.checked;
+    // Countdown toggle
+    if (elements.countdownToggle) {
+        elements.countdownToggle.addEventListener('change', () => {
+            workoutConfig.showCountdown = elements.countdownToggle.checked;
+            saveWorkoutConfig();
+        });
+    }
+
+    // Screen lock toggle
+    if (elements.screenlockToggle) {
+        elements.screenlockToggle.addEventListener('change', () => {
+            appSettings.preventSleep = elements.screenlockToggle.checked;
             saveAppSettings();
         });
     }
 
-    if (elements.countdownTimerToggle) {
-        elements.countdownTimerToggle.addEventListener('change', function() {
-            appSettings.countdownTimer = this.checked;
-            saveAppSettings();
-        });
-    }
+    // User weight input
+    if (elements.userWeight) {
+        elements.userWeight.addEventListener('change', () => {
+            let weight = parseFloat(elements.userWeight.value);
 
-    if (elements.screenLockToggle) {
-        elements.screenLockToggle.addEventListener('change', function() {
-            appSettings.screenLock = this.checked;
-            saveAppSettings();
-
-            if (this.checked) {
-                // Request wake lock to prevent screen from turning off
-                requestWakeLock();
-            } else {
-                // Release wake lock if it exists
-                releaseWakeLock();
+            // Validate weight (min 30, max 200)
+            if (isNaN(weight) || weight < 30) {
+                weight = 30;
+                elements.userWeight.value = weight;
+            } else if (weight > 200) {
+                weight = 200;
+                elements.userWeight.value = weight;
             }
-        });
-    }
 
-    if (elements.userWeightInput) {
-        elements.userWeightInput.addEventListener('change', function() {
-            appSettings.weight = parseInt(this.value) || 70;
+            appSettings.weight = weight;
             saveAppSettings();
         });
     }
 
-    if (elements.weightUnitSelect) {
-        elements.weightUnitSelect.addEventListener('change', function() {
-            appSettings.weightUnit = this.value;
+    // Weight unit select
+    if (elements.weightUnit) {
+        elements.weightUnit.addEventListener('change', () => {
+            appSettings.weightUnit = elements.weightUnit.value;
+
+            // Convert weight between kg and lb
+            const currentWeight = parseFloat(elements.userWeight.value);
+            if (appSettings.weightUnit === 'kg' && appSettings.prevWeightUnit === 'lb') {
+                // Convert lb to kg
+                elements.userWeight.value = Math.round(currentWeight * 0.453592);
+                appSettings.weight = parseFloat(elements.userWeight.value);
+            } else if (appSettings.weightUnit === 'lb' && appSettings.prevWeightUnit === 'kg') {
+                // Convert kg to lb
+                elements.userWeight.value = Math.round(currentWeight * 2.20462);
+                appSettings.weight = parseFloat(elements.userWeight.value);
+            }
+
+            appSettings.prevWeightUnit = appSettings.weightUnit;
             saveAppSettings();
         });
     }
 
+    // Clear history button
     if (elements.clearHistoryBtn) {
-        elements.clearHistoryBtn.addEventListener('click', function() {
-            if (confirm("Are you sure you want to clear all workout history? This action cannot be undone.")) {
+        elements.clearHistoryBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all workout history? This cannot be undone.')) {
                 localStorage.removeItem('heavyhitr-workout-history');
-                initCalendar();
-                updateWorkoutStats();
-                alert("Workout history cleared.");
+                initWorkoutHistory();
+                alert('Workout history cleared');
             }
         });
     }
 
+    // Reset settings button
     if (elements.resetSettingsBtn) {
-        elements.resetSettingsBtn.addEventListener('click', function() {
-            if (confirm("Are you sure you want to reset all settings to default values? This will not affect workout history.")) {
-                // Reset settings
-                localStorage.removeItem('heavyhitr-config');
-                localStorage.removeItem('heavyhitr-music');
-                localStorage.removeItem('heavyhitr-voice');
-                localStorage.removeItem('heavyhitr-app');
-
-                // Reload the page to apply defaults
+        elements.resetSettingsBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+                localStorage.removeItem('heavyhitr-workout-config');
+                localStorage.removeItem('heavyhitr-app-settings');
                 location.reload();
             }
         });
     }
+}
 
-    // Music controls
-    if (elements.toggleMusicBtn && elements.musicStatus) {
-        elements.toggleMusicBtn.addEventListener('click', () => {
-            musicSettings.enabled = !musicSettings.enabled;
-            elements.musicStatus.textContent = musicSettings.enabled ? 'ON' : 'OFF';
-        });
+// Initialize workout UI with saved settings
+function initWorkoutUI() {
+    // Set workout type
+    elements.categoryCards.forEach(card => {
+        if (card.dataset.type === workoutConfig.workoutType) {
+            card.classList.add('active');
+        } else {
+            card.classList.remove('active');
+        }
+    });
+
+    // Set difficulty
+    elements.difficultyButtons.forEach(button => {
+        if (button.dataset.level === workoutConfig.difficulty) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+
+    // Set rounds
+    elements.roundsSlider.value = workoutConfig.rounds;
+    elements.roundsValue.textContent = workoutConfig.rounds;
+
+    // Set round length
+    elements.roundLengthSlider.value = workoutConfig.roundLength;
+    elements.roundLengthValue.textContent = formatTime(workoutConfig.roundLength);
+
+    // Set break length
+    elements.breakLengthSlider.value = workoutConfig.breakLength;
+    elements.breakLengthValue.textContent = formatTime(workoutConfig.breakLength);
+
+    // Set music toggle
+    updateMusicToggle();
+
+    // Set music volume
+    elements.musicVolumeSlider.value = workoutConfig.musicVolume;
+
+    // Initialize settings UI
+    initSettingsUI();
+}
+
+// Initialize settings UI with saved settings
+function initSettingsUI() {
+    // Ensure appSettings has been initialized
+    if (!appSettings) {
+        ensureSettingsInitialized();
     }
 
-    if (elements.musicVolumeSlider) {
-        elements.musicVolumeSlider.addEventListener('input', function() {
-            musicSettings.volume = parseFloat(this.value);
-        });
+    // Sound toggle
+    if (elements.soundToggle) {
+        elements.soundToggle.checked = appSettings.sound;
     }
 
-    // Start workout button
-    if (elements.startCustomWorkoutBtn) {
-        elements.startCustomWorkoutBtn.addEventListener('click', startWorkout);
+    // Ensure voice settings exist
+    if (!appSettings.voice) {
+        appSettings.voice = {
+            enabled: true,
+            voice: 'en-US-female',
+            volume: 0.8,
+            countdown: true,
+            encouragement: true,
+            instructions: true
+        };
+        saveAppSettings();
     }
 
-    // Workout control buttons
-    if (elements.pauseWorkoutBtn) {
-        elements.pauseWorkoutBtn.addEventListener('click', pauseWorkout);
+    // Voice settings
+    if (elements.voiceToggle) {
+        elements.voiceToggle.checked = appSettings.voice.enabled;
     }
 
-    if (elements.endWorkoutBtn) {
-        elements.endWorkoutBtn.addEventListener('click', endWorkout);
+    if (elements.voiceType) {
+        elements.voiceType.value = appSettings.voice.voice;
     }
 
-    if (elements.workoutCloseBtn) {
-        elements.workoutCloseBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to end this workout?')) {
-                endWorkout();
-            }
-        });
+    if (elements.voiceVolume) {
+        elements.voiceVolume.value = appSettings.voice.volume;
     }
 
-    // Share workout button
-    if (elements.shareWorkoutBtn) {
-        elements.shareWorkoutBtn.addEventListener('click', shareWorkout);
+    if (elements.voiceVolumeValue) {
+        elements.voiceVolumeValue.textContent = `${Math.round(appSettings.voice.volume * 100)}%`;
     }
 
-    // New workout button
-    if (elements.newWorkoutBtn) {
-        elements.newWorkoutBtn.addEventListener('click', () => {
-            elements.workoutCompleteOverlay.classList.remove('active');
-            activateTab('workouts');
-        });
+    if (elements.voiceCountdownToggle) {
+        elements.voiceCountdownToggle.checked = appSettings.voice.countdown;
+    }
+
+    if (elements.voiceEncouragementToggle) {
+        elements.voiceEncouragementToggle.checked = appSettings.voice.encouragement;
+    }
+
+    if (elements.voiceInstructionsToggle) {
+        elements.voiceInstructionsToggle.checked = appSettings.voice.instructions;
+    }
+
+    // Workout settings
+    if (elements.countdownToggle) {
+        elements.countdownToggle.checked = workoutConfig.showCountdown;
+    }
+
+    if (elements.screenlockToggle) {
+        elements.screenlockToggle.checked = appSettings.preventSleep;
+    }
+
+    // User settings
+    if (elements.userWeight) {
+        elements.userWeight.value = appSettings.weight;
+    }
+
+    if (elements.weightUnit) {
+        elements.weightUnit.value = appSettings.weightUnit;
+    }
+
+    // Voice settings container visibility
+    const voiceSettings = document.getElementById('voice-settings');
+    if (voiceSettings) {
+        if (!appSettings.voice.enabled) {
+            voiceSettings.classList.add('disabled');
+        } else {
+            voiceSettings.classList.remove('disabled');
+        }
     }
 }
 
-// Tab navigation
+// Initialize workout history view
+function initWorkoutHistory() {
+    try {
+        // Initialize calendar view
+        if (typeof initCalendar === 'function') {
+            initCalendar();
+        }
+
+        // Update stats
+        if (typeof updateWorkoutStats === 'function') {
+            updateWorkoutStats();
+        }
+    } catch (error) {
+        console.error('Error initializing workout history:', error);
+    }
+}
+
+// Update music toggle button
+function updateMusicToggle() {
+    if (workoutConfig.music) {
+        elements.toggleMusicBtn.classList.add('active');
+        elements.musicStatusText.textContent = 'ON';
+    } else {
+        elements.toggleMusicBtn.classList.remove('active');
+        elements.musicStatusText.textContent = 'OFF';
+    }
+}
+
+// Activate a specific tab
 function activateTab(tabId) {
     // Update tab buttons
-    elements.tabButtons.forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.id === `tab-${tabId}`) {
-            btn.classList.add('active');
+    elements.tabButtons.forEach(button => {
+        if (button.id === `tab-${tabId}`) {
+            button.classList.add('active');
+            button.setAttribute('aria-selected', 'true');
+        } else {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
         }
     });
 
     // Update tab content
     elements.tabContents.forEach(content => {
-        content.classList.remove('active');
         if (content.id === `${tabId}-content`) {
             content.classList.add('active');
+        } else {
+            content.classList.remove('active');
         }
     });
+
+    // Special handling for history tab
+    if (tabId === 'history') {
+        initWorkoutHistory();
+    }
 }
 
-// Start workout
-function startWorkout() {
-    // Initialize workout state
-    workoutState.isRunning = true;
-    workoutState.isPaused = false;
-    workoutState.currentRound = 1;
-    workoutState.isBreak = false;
-    workoutState.timeRemaining = workoutConfig.roundLength;
-    workoutState.totalTime = 0;
-    workoutState.startTime = new Date();
-    workoutState.exerciseIndex = 0;
+// Start a workout
+async function startWorkout() {
+    console.log('Starting workout');
 
-    // Show workout overlay
-    if (elements.workoutActiveOverlay) {
-        if (elements.workoutTitle) {
-            elements.workoutTitle.textContent = capitalizeFirstLetter(workoutConfig.difficulty);
-        }
+    // Prevent multiple starts
+    if (workoutState.isActive) return;
 
-        if (elements.workoutType) {
-            elements.workoutType.textContent = capitalizeFirstLetter(workoutConfig.workoutType);
-        }
+    // Ensure settings are initialized
+    ensureSettingsInitialized();
 
-        // Show the overlay
-        elements.workoutActiveOverlay.classList.add('active');
-
-        // Create round indicators
-        updateRoundIndicators();
-    }
-
-    // Start workout timer
-    updateTimerDisplay();
-
-    // Update workout focus
-    updateWorkoutFocus();
-
-    // Hide the coach message
-    if (elements.coachMessage) {
-        elements.coachMessage.style.display = 'none';
-    }
-
-    // If enabled, request wake lock to prevent screen from turning off
-    if (appSettings.screenLock) {
+    // Request wake lock if enabled
+    if (appSettings.preventSleep) {
         requestWakeLock();
     }
 
-    // Play start sound
-    if (appSettings.soundEffects) {
-        playSound('start');
+    // Reset workout state
+    workoutState = {
+        isActive: true,
+        isPaused: false,
+        currentRound: 1,
+        totalRounds: workoutConfig.rounds,
+        isBreak: false,
+        currentTime: workoutConfig.roundLength,
+        totalTime: 0,
+        interval: null,
+        currentFocus: null,
+        musicPlayer: null
+    };
+
+    // Update workout overlay info
+    elements.workoutTitle.textContent = `${capitalizeFirstLetter(workoutConfig.difficulty)} Workout`;
+    elements.workoutType.textContent = capitalizeFirstLetter(workoutConfig.workoutType);
+
+    // Create round indicators
+    createRoundIndicators();
+
+    // Show workout overlay
+    showWorkoutOverlay();
+
+    // Select exercise focus for this round
+    selectExerciseFocus();
+
+    // Start music if enabled
+    if (workoutConfig.music) {
+        try {
+            // Map workout type to music mood
+            let musicMood = 'energetic';
+
+            switch(workoutConfig.workoutType) {
+                case 'striking':
+                    musicMood = 'energetic';
+                    break;
+                case 'footwork':
+                    musicMood = 'intense';
+                    break;
+                case 'defense':
+                    musicMood = 'relaxed';
+                    break;
+                case 'conditioning':
+                    musicMood = 'intense';
+                    break;
+                default:
+                    musicMood = 'energetic';
+            }
+
+            workoutState.musicPlayer = await startMusic(musicMood, workoutConfig.musicVolume);
+            if (elements.currentTrackName && workoutState.musicPlayer) {
+                elements.currentTrackName.textContent = workoutState.musicPlayer.getCurrentTrackName() || 'Playing...';
+            }
+        } catch (error) {
+            console.error('Error starting music:', error);
+        }
     }
 
-    // Announce round start with voice coach
-    announceRoundStart(workoutState.currentRound, workoutConfig.rounds, workoutConfig.workoutType);
+    // Start countdown if enabled
+    if (workoutConfig.showCountdown) {
+        startCountdown(() => {
+            // Play start sound
+            if (appSettings.sound) {
+                playSound('start');
+            }
 
-    // Start the timer interval
-    workoutState.interval = setInterval(updateWorkoutTimer, 1000);
+            // Start the timer
+            startTimer();
+
+            // Announce round start
+            if (appSettings.voice && appSettings.voice.enabled) {
+                let focus = workoutState.currentFocus ? workoutState.currentFocus.focus : '';
+                let instruction = workoutState.currentFocus ? workoutState.currentFocus.instruction : '';
+
+                announceRoundStart(
+                    workoutState.currentRound,
+                    workoutState.totalRounds,
+                    workoutConfig.workoutType,
+                    focus,
+                    instruction
+                );
+            }
+        });
+    } else {
+        // Play start sound
+        if (appSettings.sound) {
+            playSound('start');
+        }
+
+        // Start the timer immediately
+        startTimer();
+
+        // Announce round start
+        if (appSettings.voice && appSettings.voice.enabled) {
+            let focus = workoutState.currentFocus ? workoutState.currentFocus.focus : '';
+            let instruction = workoutState.currentFocus ? workoutState.currentFocus.instruction : '';
+
+            announceRoundStart(
+                workoutState.currentRound,
+                workoutState.totalRounds,
+                workoutConfig.workoutType,
+                focus,
+                instruction
+            );
+        }
+    }
+}
+
+// Show the workout overlay
+function showWorkoutOverlay() {
+    elements.workoutActive.classList.add('active');
+    // Remove aria-hidden when overlay is visible
+    elements.workoutActive.setAttribute('aria-hidden', 'false');
+    elements.workoutActive.removeAttribute('inert');
+    document.body.classList.add('overlay-active');
+}
+
+// Hide the workout overlay
+function hideWorkoutOverlay() {
+    // Remove focus from any element inside the overlay before hiding
+    if (document.activeElement && elements.workoutActive.contains(document.activeElement)) {
+        document.activeElement.blur();
+    }
+
+    elements.workoutActive.classList.remove('active');
+    // Set aria-hidden when overlay is hidden AND use inert attribute
+    elements.workoutActive.setAttribute('aria-hidden', 'true');
+    elements.workoutActive.setAttribute('inert', '');
+    document.body.classList.remove('overlay-active');
+}
+
+// Create round indicators
+function createRoundIndicators() {
+    elements.roundIndicators.innerHTML = '';
+
+    for (let i = 1; i <= workoutState.totalRounds; i++) {
+        const indicator = document.createElement('div');
+        indicator.className = 'indicator-dot';
+
+        if (i === workoutState.currentRound) {
+            indicator.classList.add('active');
+        }
+
+        elements.roundIndicators.appendChild(indicator);
+    }
 }
 
 // Update round indicators
 function updateRoundIndicators() {
-    if (!elements.roundIndicators) return;
+    const indicators = elements.roundIndicators.querySelectorAll('.indicator-dot');
 
-    // Clear existing indicators
-    elements.roundIndicators.innerHTML = '';
+    indicators.forEach((indicator, index) => {
+        indicator.classList.remove('active', 'completed');
 
-    // Create new indicators
-    for (let i = 1; i <= workoutConfig.rounds; i++) {
-        const dot = document.createElement('div');
-        dot.className = 'indicator-dot';
-
-        if (i < workoutState.currentRound) {
-            dot.classList.add('completed');
-        } else if (i === workoutState.currentRound) {
-            dot.classList.add('active');
+        if (index + 1 < workoutState.currentRound) {
+            indicator.classList.add('completed');
+        } else if (index + 1 === workoutState.currentRound) {
+            indicator.classList.add('active');
         }
-
-        elements.roundIndicators.appendChild(dot);
-    }
+    });
 }
 
-// Update workout focus for current round
-function updateWorkoutFocus() {
-    if (!elements.focusTitle || !elements.focusInstruction) return;
+// Select a random exercise focus
+function selectExerciseFocus() {
+    const exercises = workoutContent[workoutConfig.workoutType];
 
-    const workoutType = workoutConfig.workoutType;
-
-    // Check if we have content for this workout type
-    if (workoutContent[workoutType]) {
-        // Get content for current exercise index
-        const exercises = workoutContent[workoutType];
-        const index = workoutState.exerciseIndex % exercises.length;
-        const exercise = exercises[index];
-
-        elements.focusTitle.textContent = exercise.focus;
-        elements.focusInstruction.textContent = exercise.instruction;
-    } else {
-        // Fallback if no content is available
-        elements.focusTitle.textContent = capitalizeFirstLetter(workoutType) + " Training";
-        elements.focusInstruction.textContent = "Focus on proper form and intensity";
-    }
-}
-
-// Update coach message
-function updateCoachMessage(message) {
-    if (!elements.coachMessage) return;
-
-    if (!message) {
-        elements.coachMessage.style.display = 'none';
+    if (!exercises || exercises.length === 0) {
+        console.error(`No exercises found for ${workoutConfig.workoutType}`);
         return;
     }
 
-    // Show and update the coach message
-    elements.coachMessage.style.display = 'block';
-    elements.coachMessage.innerHTML = `<div class="focus-instruction">${message}</div>`;
+    // Get a random exercise that's different from the current one
+    let randomIndex = Math.floor(Math.random() * exercises.length);
 
-    // Auto-hide after 3 seconds
-    setTimeout(() => {
-        if (elements.coachMessage) {
-            elements.coachMessage.style.display = 'none';
+    // Try to get a different exercise than current if possible
+    if (workoutState.currentFocus && exercises.length > 1) {
+        let attempts = 0;
+        const currentIndex = exercises.findIndex(ex => ex.focus === workoutState.currentFocus.focus);
+
+        while (randomIndex === currentIndex && attempts < 5) {
+            randomIndex = Math.floor(Math.random() * exercises.length);
+            attempts++;
         }
-    }, 3000);
+    }
+
+    workoutState.currentFocus = exercises[randomIndex];
+
+    // Update UI
+    if (elements.focusTitle && elements.focusInstruction && workoutState.currentFocus) {
+        elements.focusTitle.textContent = workoutState.currentFocus.focus;
+        elements.focusInstruction.textContent = workoutState.currentFocus.instruction || '';
+    }
 }
 
-// Update timer display
-function updateTimerDisplay() {
-    if (!elements.timerValue || !elements.timerLabel) return;
+// Start the countdown before workout begins
+function startCountdown(callback) {
+    let count = 3;
 
-    // Update the time value
-    elements.timerValue.textContent = formatTime(workoutState.timeRemaining);
+    // Update UI
+    elements.timerValue.textContent = count;
+    elements.timerLabel.textContent = 'STARTING';
+    elements.timerProgress.style.strokeDashoffset = '0';
 
-    // Update the label
+    // Add pulse animation class
+    elements.timerValue.classList.add('pulse-animation');
+
+    // Start countdown
+    const countdownInterval = setInterval(() => {
+        count -= 1;
+
+        if (count > 0) {
+            // Update UI
+            elements.timerValue.textContent = count;
+
+            // Play sound
+            if (appSettings.sound) {
+                playCountdownSound();
+            }
+
+            // Announce countdown
+            if (appSettings.voice && appSettings.voice.enabled && appSettings.voice.countdown) {
+                announceCountdown(count);
+            }
+        } else {
+            // Clear interval
+            clearInterval(countdownInterval);
+
+            // Remove pulse animation class
+            elements.timerValue.classList.remove('pulse-animation');
+
+            // Execute callback
+            callback();
+        }
+    }, 1000);
+}
+
+// Start the timer
+function startTimer() {
+    // Initial UI update
+    updateTimerUI();
+
+    // Set interval
+    workoutState.interval = setInterval(() => {
+        // Decrease current time
+        workoutState.currentTime -= 1;
+
+        // Increase total time
+        workoutState.totalTime += 1;
+
+        // Update UI
+        updateTimerUI();
+
+        // Check if time is up
+        if (workoutState.currentTime <= 0) {
+            if (workoutState.isBreak) {
+                endBreak();
+            } else {
+                endRound();
+            }
+        }
+
+        // Random encouragement during round
+        if (!workoutState.isBreak &&
+            appSettings.voice &&
+            appSettings.voice.enabled &&
+            appSettings.voice.encouragement &&
+            workoutState.currentTime > 5) {
+
+            // 5% chance of encouragement each second
+            if (Math.random() < 0.05) {
+                announceEncouragement(workoutConfig.workoutType);
+            }
+        }
+
+        // Play countdown sound for last 3 seconds
+        if (workoutState.currentTime <= 3 && workoutState.currentTime > 0) {
+            if (appSettings.sound) {
+                playCountdownSound();
+            }
+
+            if (appSettings.voice && appSettings.voice.enabled && appSettings.voice.countdown) {
+                announceCountdown(workoutState.currentTime);
+            }
+        }
+
+    }, 1000);
+}
+
+// Update the timer UI
+function updateTimerUI() {
+    // Update timer value
+    elements.timerValue.textContent = formatTime(workoutState.currentTime);
+
+    // Update timer label
     if (workoutState.isBreak) {
         elements.timerLabel.textContent = 'REST';
     } else {
         elements.timerLabel.textContent = `ROUND ${workoutState.currentRound}`;
     }
 
-    // Update circular progress
-    if (elements.timerProgress) {
-        const totalTime = workoutState.isBreak ? workoutConfig.breakLength : workoutConfig.roundLength;
-        const progress = (totalTime - workoutState.timeRemaining) / totalTime;
+    // Update progress circle
+    const totalSeconds = workoutState.isBreak ? workoutConfig.breakLength : workoutConfig.roundLength;
+    const progress = workoutState.currentTime / totalSeconds;
+    const circumference = 2 * Math.PI * 45; // Circle has r=45
+    const dashOffset = circumference * (1 - progress);
+    elements.timerProgress.style.strokeDasharray = circumference;
+    elements.timerProgress.style.strokeDashoffset = dashOffset;
 
-        const circumference = 2 * Math.PI * 45; // 45 is the radius of our circle
-        const dashOffset = circumference - (progress * circumference);
-        elements.timerProgress.style.strokeDasharray = circumference;
-        elements.timerProgress.style.strokeDashoffset = dashOffset;
-    }
-
-    // Add pulse animation for last few seconds
-    if (workoutState.timeRemaining <= 5) {
-        elements.timerValue.classList.add('pulse-animation');
-    } else {
-        elements.timerValue.classList.remove('pulse-animation');
-    }
+    // Update round indicators
+    updateRoundIndicators();
 }
 
-// Update workout timer - version for app.js with coachMessages inlined
-function updateWorkoutTimer() {
-    if (workoutState.isPaused) return;
-
-    workoutState.timeRemaining--;
-    workoutState.totalTime++;
-
-    // Update timer display
-    updateTimerDisplay();
-
-    // Final countdown sounds
-    if (workoutState.timeRemaining <= 3 && workoutState.timeRemaining > 0) {
-        playCountdownSound();
-        announceCountdown(workoutState.timeRemaining);
-    }
-
-    // Check if time is up for current round or break
-    if (workoutState.timeRemaining <= 0) {
-        if (workoutState.isBreak) {
-            // Break is over, start new round
-            workoutState.isBreak = false;
-            workoutState.currentRound++;
-
-            // Check if workout is complete
-            if (workoutState.currentRound > workoutConfig.rounds) {
-                completeWorkout();
-                return;
-            }
-
-            // Setup for new round
-            workoutState.timeRemaining = workoutConfig.roundLength;
-            updateRoundIndicators();
-
-            // Directly get focus content for this round
-            let focusContent = getFocusForRound(workoutContent, workoutConfig.workoutType, workoutState.currentRound);
-
-            // Update UI with this focus
-            updateWorkoutFocus(focusContent);
-
-            // Define simple coach messages if not available from import
-            const defaultCoachMessages = {
-                roundStart: ["Let's go!", "Round starting", "Focus now"],
-                roundEnd: ["Round complete", "Good work", "Break time"],
-                breakTime: ["Rest up", "Recover", "Breathe"],
-                countdown: ["Get ready", "Prepare", "Starting soon"],
-                encouragement: ["Keep going", "You got this", "Stay strong"],
-                technique: ["Focus on form", "Good technique", "Stay sharp"],
-                workoutComplete: ["Workout complete!", "Great job!", "You did it!"]
-            };
-
-            // Use either imported coachMessages or default ones
-            const messageSource = typeof coachMessages !== 'undefined' ? coachMessages : defaultCoachMessages;
-            updateCoachMessage('roundStart', messageSource);
-
-            // Play round start sound
-            playRoundStartSound();
-
-            // Announce break end first
-            announceBreakEnd();
-
-            // After a brief pause, announce the new round with focus
-            setTimeout(() => {
-                if (focusContent) {
-                    console.log("Announcing round start with focus:", focusContent.focus);
-
-                    // Announce with focus text directly
-                    announceRoundStart(
-                        workoutState.currentRound,
-                        workoutConfig.rounds,
-                        workoutConfig.workoutType,
-                        focusContent.focus,
-                        focusContent.instruction
-                    );
-                } else {
-                    console.log("Announcing without focus");
-
-                    // Fallback without focus content
-                    announceRoundStart(
-                        workoutState.currentRound,
-                        workoutConfig.rounds,
-                        workoutConfig.workoutType
-                    );
-                }
-            }, 2000);
-
-            // Start audio for new round
-            startAudio();
-        } else {
-            // Round is over, start break (unless it's the last round)
-            if (workoutState.currentRound === workoutConfig.rounds) {
-                completeWorkout();
-                return;
-            }
-
-            workoutState.isBreak = true;
-            workoutState.timeRemaining = workoutConfig.breakLength;
-
-            // Define simple coach messages if not available from import
-            const defaultCoachMessages = {
-                roundStart: ["Let's go!", "Round starting", "Focus now"],
-                roundEnd: ["Round complete", "Good work", "Break time"],
-                breakTime: ["Rest up", "Recover", "Breathe"],
-                countdown: ["Get ready", "Prepare", "Starting soon"],
-                encouragement: ["Keep going", "You got this", "Stay strong"],
-                technique: ["Focus on form", "Good technique", "Stay sharp"],
-                workoutComplete: ["Workout complete!", "Great job!", "You did it!"]
-            };
-
-            // Use either imported coachMessages or default ones
-            const messageSource = typeof coachMessages !== 'undefined' ? coachMessages : defaultCoachMessages;
-            updateCoachMessage('roundEnd', messageSource);
-
-            // Play round end sound
-            playRoundEndSound();
-
-            // Announce round end
-            announceRoundEnd(workoutState.currentRound === workoutConfig.rounds);
-
-            // Stop audio during break
-            stopAudio();
-        }
-    } else {
-        // Define simple coach messages if not available from import
-        const defaultCoachMessages = {
-            roundStart: ["Let's go!", "Round starting", "Focus now"],
-            roundEnd: ["Round complete", "Good work", "Break time"],
-            breakTime: ["Rest up", "Recover", "Breathe"],
-            countdown: ["Get ready", "Prepare", "Starting soon"],
-            encouragement: ["Keep going", "You got this", "Stay strong"],
-            technique: ["Focus on form", "Good technique", "Stay sharp"],
-            workoutComplete: ["Workout complete!", "Great job!", "You did it!"]
-        };
-
-        // Use either imported coachMessages or default ones
-        const messageSource = typeof coachMessages !== 'undefined' ? coachMessages : defaultCoachMessages;
-
-        // During workout, periodically update coach messages
-        if (!workoutState.isBreak) {
-            // Halfway point announcement
-            if (workoutState.timeRemaining === Math.floor(workoutConfig.roundLength / 2)) {
-                updateCoachMessage('encouragement', messageSource);
-                announceEncouragement(workoutConfig.workoutType);
-            }
-
-            // Regular encouragement
-            else if (workoutState.timeRemaining % 30 === 0) {
-                const messageType = Math.random() > 0.5 ? 'encouragement' : 'technique';
-                updateCoachMessage(messageType, messageSource);
-
-                // For every minute, give voice encouragement
-                if (workoutState.timeRemaining % 60 === 0) {
-                    announceEncouragement(workoutConfig.workoutType);
-                }
-            }
-        }
-
-        // During break, update break messages
-        if (workoutState.isBreak && workoutState.timeRemaining % 10 === 0) {
-            updateCoachMessage('breakTime', messageSource);
-        }
-
-        // Last 3 seconds of break, countdown
-        if (workoutState.isBreak && workoutState.timeRemaining <= 3) {
-            updateCoachMessage('countdown', messageSource);
-        }
-    }
-}
-
-// Pause or resume workout
-function pauseWorkout() {
-    workoutState.isPaused = !workoutState.isPaused;
-
-    // Play pause/resume sound
-    if (appSettings.soundEffects) {
-        playSound(workoutState.isPaused ? 'pause' : 'resume');
-    }
-
-    // Update coach message
-    if (workoutState.isPaused) {
-        updateCoachMessage('Workout paused. Resume when ready.');
-    } else {
-        updateCoachMessage('Workout resumed. Keep going!');
-    }
-
-    // Update pause button text
-    if (elements.pauseWorkoutBtn) {
-        if (workoutState.isPaused) {
-            elements.pauseWorkoutBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                RESUME
-            `;
-        } else {
-            elements.pauseWorkoutBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                PAUSE
-            `;
-        }
-    }
-}
-
-// Complete workout
-function completeWorkout() {
-    // Stop the timer
+// End the current round
+function endRound() {
     clearInterval(workoutState.interval);
-    workoutState.isRunning = false;
 
-    // Play workout complete sound
-    if (appSettings.soundEffects) {
+    // Play round end sound
+    if (appSettings.sound) {
+        playSound('roundEnd');
+    }
+
+    const isLastRound = workoutState.currentRound >= workoutState.totalRounds;
+
+    // Announce round end
+    if (appSettings.voice && appSettings.voice.enabled) {
+        announceRoundEnd(isLastRound);
+    }
+
+    if (isLastRound) {
+        // End the workout
+        completeWorkout();
+    } else {
+        // Start break
+        startBreak();
+    }
+}
+
+// Start a break between rounds
+function startBreak() {
+    workoutState.isBreak = true;
+    workoutState.currentTime = workoutConfig.breakLength;
+
+    // Update UI
+    updateTimerUI();
+
+    // Start timer
+    startTimer();
+}
+
+// End the break
+function endBreak() {
+    clearInterval(workoutState.interval);
+
+    // Play round start sound
+    if (appSettings.sound) {
+        playSound('roundStart');
+    }
+
+    // Move to next round
+    workoutState.currentRound += 1;
+    workoutState.isBreak = false;
+    workoutState.currentTime = workoutConfig.roundLength;
+
+    // Select new exercise focus
+    selectExerciseFocus();
+
+    // Announce break end and round start
+    if (appSettings.voice && appSettings.voice.enabled) {
+        announceBreakEnd();
+
+        // Short delay before announcing round start
+        setTimeout(() => {
+            let focus = workoutState.currentFocus ? workoutState.currentFocus.focus : '';
+            let instruction = workoutState.currentFocus ? workoutState.currentFocus.instruction : '';
+
+            announceRoundStart(
+                workoutState.currentRound,
+                workoutState.totalRounds,
+                workoutConfig.workoutType,
+                focus,
+                instruction
+            );
+        }, 1500);
+    }
+
+    // Update UI
+    updateTimerUI();
+
+    // Start timer
+    startTimer();
+}
+
+// Toggle pause/resume workout
+function togglePauseWorkout() {
+    if (workoutState.isPaused) {
+        // Resume workout
+        resumeWorkout();
+    } else {
+        // Pause workout
+        pauseWorkout();
+    }
+}
+
+// Pause the workout
+function pauseWorkout() {
+    workoutState.isPaused = true;
+    clearInterval(workoutState.interval);
+
+    // Pause music
+    if (workoutState.musicPlayer) {
+        pauseMusic();
+    }
+
+    // Play pause sound
+    if (appSettings.sound) {
+        playSound('pause');
+    }
+
+    // Update button text
+    elements.pauseWorkoutBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        RESUME
+    `;
+
+    // Add paused class to timer
+    elements.timerValue.classList.add('paused');
+}
+
+// Resume the workout
+function resumeWorkout() {
+    workoutState.isPaused = false;
+
+    // Resume music
+    if (workoutConfig.music && workoutState.musicPlayer) {
+        resumeMusic();
+    }
+
+    // Play resume sound
+    if (appSettings.sound) {
+        playSound('resume');
+    }
+
+    // Update button text
+    elements.pauseWorkoutBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        PAUSE
+    `;
+
+    // Remove paused class from timer
+    elements.timerValue.classList.remove('paused');
+
+    // Restart the timer
+    startTimer();
+}
+
+// Confirm ending the workout
+function confirmEndWorkout() {
+    if (workoutState.totalTime < 10) {
+        // If workout just started, end without confirmation
+        endWorkout();
+    } else {
+        // Pause the workout
+        if (!workoutState.isPaused) {
+            pauseWorkout();
+        }
+
+        // Show confirmation dialog
+        const confirmed = confirm('Are you sure you want to end your workout?');
+
+        if (confirmed) {
+            endWorkout();
+        } else {
+            // Resume if the user was not paused before
+            if (!workoutState.isPaused) {
+                resumeWorkout();
+            }
+        }
+    }
+}
+
+// End the workout without completing
+function endWorkout() {
+    clearInterval(workoutState.interval);
+
+    // Stop music
+    if (workoutState.musicPlayer) {
+        stopMusic();
+    }
+
+    // Stop voice announcements
+    stopAllAnnouncements();
+
+    // Release wake lock
+    releaseWakeLock();
+
+    // Reset workout state
+    workoutState.isActive = false;
+    workoutState.isPaused = false;
+
+    // Hide workout overlay
+    hideWorkoutOverlay();
+
+    // Reset UI elements
+    elements.timerValue.classList.remove('paused');
+    elements.pauseWorkoutBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        PAUSE
+    `;
+
+    // Show completion screen if more than 1 minute of workout completed
+    if (workoutState.totalTime >= 60) {
+        completeWorkout();
+    }
+}
+
+// Complete the workout
+function completeWorkout() {
+    // Clear any remaining intervals
+    clearInterval(workoutState.interval);
+
+    // Stop music
+    if (workoutState.musicPlayer) {
+        stopMusic();
+    }
+
+    // Play complete sound
+    if (appSettings.sound) {
         playSound('complete');
     }
 
-    // Announce workout completion with voice coach
-    announceRoundEnd(true);
+    // Release wake lock
+    releaseWakeLock();
 
     // Save workout to history
-    const workoutSummary = saveWorkoutHistory();
+    let workoutSummary;
+    try {
+        if (typeof saveWorkoutHistory === 'function') {
+            workoutSummary = saveWorkoutHistory();
+        }
+    } catch (error) {
+        console.error('Error saving workout history:', error);
+    }
 
-    // Show workout completion screen
-    showWorkoutComplete(workoutSummary);
+    // Update summary view
+    elements.summaryRounds.textContent = workoutState.currentRound;
+    elements.summaryTime.textContent = formatTime(workoutState.totalTime);
+    elements.summaryLevel.textContent = capitalizeFirstLetter(workoutConfig.difficulty);
+    elements.summaryType.textContent = capitalizeFirstLetter(workoutConfig.workoutType);
 
-    // Release wake lock if it was requested
-    releaseWakeLock();
+    // Hide workout overlay and show completion
+    hideWorkoutOverlay();
+    showWorkoutComplete();
 }
 
-// End workout early
-function endWorkout() {
-    // Stop the timer
-    clearInterval(workoutState.interval);
-    workoutState.isRunning = false;
-
-    // Calculate total time spent
-    if (workoutState.startTime) {
-        const endTime = new Date();
-        workoutState.totalTime = Math.floor((endTime - workoutState.startTime) / 1000);
-    }
-
-    // Save workout to history
-    const workoutSummary = saveWorkoutHistory();
-
-    // Show workout completion screen
-    showWorkoutComplete(workoutSummary);
-
-    // Release wake lock if it was requested
-    releaseWakeLock();
+// Show workout complete overlay
+function showWorkoutComplete() {
+    elements.workoutComplete.classList.add('active');
+    elements.workoutComplete.setAttribute('aria-hidden', 'false');
+    elements.workoutComplete.removeAttribute('inert');
+    document.body.classList.add('overlay-active');
 }
 
-// Show workout completion screen
-function showWorkoutComplete(workoutSummary) {
-    if (!elements.workoutCompleteOverlay) return;
-
-    // Hide workout active overlay
-    if (elements.workoutActiveOverlay) {
-        elements.workoutActiveOverlay.classList.remove('active');
+// Hide workout complete overlay
+function hideWorkoutComplete() {
+    // Remove focus from any element inside the overlay before hiding
+    if (document.activeElement && elements.workoutComplete.contains(document.activeElement)) {
+        document.activeElement.blur();
     }
 
-    // Show completion overlay
-    elements.workoutCompleteOverlay.classList.add('active');
-
-    // Update summary stats
-    if (elements.summaryRounds) {
-        elements.summaryRounds.textContent = workoutState.currentRound;
-    }
-
-    if (elements.summaryTime) {
-        elements.summaryTime.textContent = formatTime(workoutState.totalTime);
-    }
-
-    if (elements.summaryLevel) {
-        elements.summaryLevel.textContent = capitalizeFirstLetter(workoutConfig.difficulty);
-    }
-
-    if (elements.summaryType) {
-        elements.summaryType.textContent = capitalizeFirstLetter(workoutConfig.workoutType);
-    }
+    elements.workoutComplete.classList.remove('active');
+    elements.workoutComplete.setAttribute('aria-hidden', 'true');
+    elements.workoutComplete.setAttribute('inert', '');
+    document.body.classList.remove('overlay-active');
 }
 
-// Share workout functionality
+// Share workout results
 function shareWorkout() {
-    // Check if Web Share API is available
-    if (navigator.share) {
-        const shareData = {
-            title: 'HeavyHITR Workout',
-            text: `Just completed a ${capitalizeFirstLetter(workoutConfig.difficulty)} ${capitalizeFirstLetter(workoutConfig.workoutType)} workout with ${workoutState.currentRound} rounds in ${formatTime(workoutState.totalTime)}!`,
-            url: window.location.href
-        };
+    const minutes = Math.floor(workoutState.totalTime / 60);
+    const seconds = workoutState.totalTime % 60;
+    const timeString = `${minutes}m ${seconds}s`;
 
-        navigator.share(shareData)
-            .then(() => console.log('Successful share'))
-            .catch((error) => console.error('Error sharing:', error));
+    const shareText = `Just completed a ${capitalizeFirstLetter(workoutConfig.difficulty)} ${capitalizeFirstLetter(workoutConfig.workoutType)} workout on HeavyHITR! ${workoutState.currentRound} rounds in ${timeString}. 🥊💪 #HeavyHITR #Boxing`;
+
+    // Check if Web Share API is supported
+    if (navigator.share) {
+        navigator.share({
+            title: 'HeavyHITR Workout Complete',
+            text: shareText
+        }).catch(error => {
+            console.log('Error sharing:', error);
+            fallbackShare(shareText);
+        });
     } else {
-        // Fallback for browsers that don't support the Web Share API
-        alert('Share feature is not supported in your browser. Try copying this link manually:\n\n' + window.location.href);
+        fallbackShare(shareText);
     }
 }
 
-// Sound effects
-function playSound(type) {
-    // Import directly to avoid circular dependencies
-    import('./audio.js').then(audio => {
-        audio.playSound(type);
-    });
+// Fallback share method (copy to clipboard)
+function fallbackShare(text) {
+    // Create a temporary input element
+    const input = document.createElement('textarea');
+    input.value = text;
+    document.body.appendChild(input);
+
+    // Select and copy the text
+    input.select();
+    document.execCommand('copy');
+
+    // Remove the input element
+    document.body.removeChild(input);
+
+    // Show confirmation
+    alert('Copied to clipboard! You can paste this in your social media posts.');
 }
 
-// Screen Wake Lock API
-let wakeLock = null;
-
-// Request a wake lock to prevent the screen from turning off
+// Request wake lock to keep screen on
 async function requestWakeLock() {
-    if ('wakeLock' in navigator) {
-        try {
+    try {
+        if ('wakeLock' in navigator) {
             wakeLock = await navigator.wakeLock.request('screen');
             console.log('Wake Lock is active');
 
-            wakeLock.addEventListener('release', () => {
-                console.log('Wake Lock was released');
-            });
-        } catch (error) {
-            console.error('Could not obtain Wake Lock:', error);
+            // Add event listener for visibility change
+            document.addEventListener('visibilitychange', handleVisibilityChange);
         }
-    } else {
-        console.warn('Wake Lock API is not supported in this browser');
+    } catch (error) {
+        console.error('Wake Lock request failed:', error);
     }
 }
 
-// Release the wake lock
+// Release wake lock
 function releaseWakeLock() {
-    if (wakeLock !== null) {
-        wakeLock.release()
-            .then(() => {
-                wakeLock = null;
-                console.log('Wake Lock released');
-            })
-            .catch((error) => {
-                console.error('Error releasing Wake Lock:', error);
-            });
+    if (wakeLock) {
+        try {
+            wakeLock.release();
+            wakeLock = null;
+            console.log('Wake Lock released');
+
+            // Remove event listener
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        } catch (error) {
+            console.error('Failed to release Wake Lock:', error);
+        }
     }
 }
 
-// Run initialization when DOM is loaded
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    // DOM already loaded
-    init();
+// Handle visibility change for wake lock
+async function handleVisibilityChange() {
+    if (document.visibilityState === 'visible' && wakeLock === null) {
+        requestWakeLock();
+    }
 }
 
-// Expose functions that need to be accessed globally
+// iOS Audio Context unlocking
+function setupIOSAudioUnlock() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    if (isIOS) {
+        console.log('iOS device detected, setting up audio unlocking');
+
+        // Function to unlock audio
+        function unlockAudio() {
+            // Create a temporary Howl
+            const unlockHowl = new Howl({
+                src: ['audio/tap.mp3'],
+                volume: 0.01,
+                onend: function() {
+                    console.log('Audio context unlocked');
+                }
+            });
+
+            // Try to play it
+            unlockHowl.play();
+        }
+
+        // Try to unlock on user interaction
+        document.addEventListener('touchend', unlockAudio, { once: true });
+        document.addEventListener('click', unlockAudio, { once: true });
+    }
+}
+
+// Helper function to capitalize first letter
+function capitalizeFirstLetter(string) {
+    if (!string) return '';
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+// Expose public methods for global access if needed
 window.HeavyHITR = {
-    startWorkout,
-    pauseWorkout,
-    endWorkout,
-    repeatWorkout,
-    activateTab
+    activateTab: activateTab,
+    startWorkout: startWorkout
 };

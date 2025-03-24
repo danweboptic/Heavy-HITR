@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>HeavyHITR - Offline</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <style>
+        :root {
+            --dark-bg: #060f1f;
+            --primary-color: #75fac2;
+            --light-text: #e1e1e1;
+            --muted-text: #8b97a8;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+            background-color: var(--dark-bg);
+            color: var(--light-text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 500px;
+            padding: 30px;
+        }
+        
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+        
+        .accent {
+            color: var(--primary-color);
+        }
+        
+        .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+        }
+        
+        p {
+            font-size: 1rem;
+            color: var(--muted-text);
+            margin-bottom: 30px;
+        }
+        
+        .button {
+            background-color: var(--primary-color);
+            color: var(--dark-bg);
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+        
+        .button:hover {
+            opacity: 0.9;
+        }
+        
+        .status {
+            margin-top: 40px;
+            font-size: 0.9rem;
+            color: var(--muted-text);
+        }
+        
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .icon {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">Heavy<span class="accent">HITR</span></div>
+        
+        <div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18m-9-9l-4.172-4.172a2 2 0 00-2.828 0l-.707.707a2 2 0 000 2.828L8.293 15m6.586 0l4.172-4.172a2 2 0 000-2.828l-.707-.707a2 2 0 00-2.828 0L11.293 11" />
+            </svg>
+        </div>
+        
+        <h1>You're currently offline</h1>
+        
+        <p>
+            It seems you're not connected to the internet right now. Some features of HeavyHITR may be limited until you're back online.
+        </p>
+        
+        <p>
+            You can still access your previously loaded workouts and settings.
+        </p>
+        
+        <a href="/" class="button">Try Again</a>
+        
+        <div class="status" id="status">Checking connection...</div>
+    </div>
+    
+    <script>
+        // Check for online status changes
+        function updateOnlineStatus() {
+            const statusEl = document.getElementById('status');
+            if (navigator.onLine) {
+                statusEl.textContent = 'You are back online! Redirecting...';
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            } else {
+                statusEl.textContent = 'You are currently offline.';
+            }
+        }
+        
+        // Initial check
+        updateOnlineStatus();
+        
+        // Listen for changes
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        
+        // Try to reconnect periodically
+        setInterval(() => {
+            if (!navigator.onLine) {
+                fetch('/')
+                    .then(() => {
+                        if (!navigator.onLine) {
+                            // Sometimes the online event doesn't fire correctly
+                            // This forces a check
+                            window.dispatchEvent(new Event('online'));
+                        }
+                    })
+                    .catch(() => {
+                        // Still offline, do nothing
+                    });
+            }
+        }, 10000);
+    </script>
+</body>
+</html>

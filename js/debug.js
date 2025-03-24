@@ -2,12 +2,17 @@
  * HeavyHITR - Debug Module
  * Provides debug tools and data validation
  * @author danweboptic
- * @lastUpdated 2025-03-24 13:36:04
+ * @lastUpdated 2025-03-24 15:37:16
  */
 
 import { workoutContent, coachMessages } from './data.js';
 import { workoutConfig } from './settings.js';
 import { speak } from './voice.js';
+
+// Define global debug object first
+window.debugHeavyHITR = {
+    // These will be populated later
+};
 
 // Validate workout content structure
 export function validateWorkoutContent() {
@@ -137,17 +142,15 @@ export function testFocusAnnouncement() {
     });
 }
 
-// Add to the global debug object
-window.debugHeavyHITR.testFocusAnnouncement = testFocusAnnouncement;
-
-// Expose debug functions to global scope for testing in browser console
-window.debugHeavyHITR = {
+// Now populate the global debug object
+Object.assign(window.debugHeavyHITR, {
     validateWorkoutContent,
     testVoiceAnnouncement,
+    testFocusAnnouncement,
     inspectWorkoutContent: () => console.log(workoutContent),
     inspectCoachMessages: () => console.log(coachMessages),
     speakTest: (text) => speak(text, 'high')
-};
+});
 
 // Run validation on load
 document.addEventListener('DOMContentLoaded', () => {
