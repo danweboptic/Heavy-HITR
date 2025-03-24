@@ -351,17 +351,40 @@ export function updateTimerDisplay() {
 
 // Update workout focus for current round
 export function updateWorkoutFocus(workoutContent) {
-    const content = workoutContent[workoutConfig.workoutType];
-    if (!content) {
-        console.error(`No content found for workout type: ${workoutConfig.workoutType}`);
+    // Ensure we have valid workoutContent
+    if (!workoutContent) {
+        console.error('No workout content provided');
         return null;
     }
 
+    // Get the content for the current workout type
+    const content = workoutContent[workoutConfig.workoutType];
+    if (!content || !Array.isArray(content) || content.length === 0) {
+        console.error(`No content found for workout type: ${workoutConfig.workoutType}`);
+        // Return a default focus object to prevent undefined errors
+        const defaultFocus = {
+            focus: `${workoutConfig.workoutType.charAt(0).toUpperCase() + workoutConfig.workoutType.slice(1)} training`,
+            instruction: "Focus on proper form and technique"
+        };
+
+        // Update UI with default values
+        if (elements.focusTitle && elements.focusInstruction) {
+            elements.focusTitle.textContent = defaultFocus.focus;
+            elements.focusInstruction.textContent = defaultFocus.instruction;
+        }
+
+        return defaultFocus;
+    }
+
+    // Calculate the correct focus based on round number
     const roundIndex = (workoutState.currentRound - 1) % content.length;
     const focus = content[roundIndex];
 
-    elements.focusTitle.textContent = focus.focus;
-    elements.focusInstruction.textContent = focus.instruction;
+    // Update UI elements if they exist
+    if (elements.focusTitle && elements.focusInstruction && focus) {
+        elements.focusTitle.textContent = focus.focus;
+        elements.focusInstruction.textContent = focus.instruction;
+    }
 
     // Return the focus for voice announcements
     return focus;

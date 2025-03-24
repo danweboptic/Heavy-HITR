@@ -2,7 +2,7 @@
  * HeavyHITR - Workout Module
  * Manages workout functionality and timing
  * @author danweboptic
- * @lastUpdated 2025-03-24 11:30:52
+ * @lastUpdated 2025-03-24 11:48:12
  */
 import { workoutConfig, workoutState } from './settings.js';
 import {
@@ -53,7 +53,7 @@ export function startWorkout() {
     // Set up UI for workout
     showWorkoutOverlay();
 
-    // Set workout focus and save it for voice announcements
+    // Get the focus content for this round
     const focusContent = updateWorkoutFocus(workoutContent);
 
     // Set initial coach message
@@ -68,23 +68,26 @@ export function startWorkout() {
     // Play round start sound
     playRoundStartSound();
 
-    // Announce round start with focus and instruction
-    if (focusContent) {
-        announceRoundStart(
-            workoutState.currentRound,
-            workoutConfig.rounds,
-            workoutConfig.workoutType,
-            focusContent.focus,
-            focusContent.instruction
-        );
-    } else {
-        // Fallback without focus content
-        announceRoundStart(
-            workoutState.currentRound,
-            workoutConfig.rounds,
-            workoutConfig.workoutType
-        );
-    }
+    // Wait a moment before announcing for better audio experience
+    setTimeout(() => {
+        // Only announce if we have valid content
+        if (focusContent && focusContent.focus && focusContent.instruction) {
+            announceRoundStart(
+                workoutState.currentRound,
+                workoutConfig.rounds,
+                workoutConfig.workoutType,
+                focusContent.focus,
+                focusContent.instruction
+            );
+        } else {
+            // Fallback without focus content
+            announceRoundStart(
+                workoutState.currentRound,
+                workoutConfig.rounds,
+                workoutConfig.workoutType
+            );
+        }
+    }, 1000);
 
     // Start the timer interval
     workoutState.interval = setInterval(updateWorkoutTimer, 1000);
@@ -170,18 +173,25 @@ function updateWorkoutTimer() {
             // Play round start sound
             playRoundStartSound();
 
-            // Announce break end and new round start
+            // Announce break end
             announceBreakEnd();
 
             // After a brief pause, announce the new round focus
             setTimeout(() => {
-                if (focusContent) {
+                if (focusContent && focusContent.focus && focusContent.instruction) {
                     announceRoundStart(
                         workoutState.currentRound,
                         workoutConfig.rounds,
                         workoutConfig.workoutType,
                         focusContent.focus,
                         focusContent.instruction
+                    );
+                } else {
+                    // Fallback without focus content
+                    announceRoundStart(
+                        workoutState.currentRound,
+                        workoutConfig.rounds,
+                        workoutConfig.workoutType
                     );
                 }
             }, 2000);
