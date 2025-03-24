@@ -2,10 +2,9 @@
  * HeavyHITR - Audio Module
  * Handles audio playback
  * @author danweboptic
- * @lastUpdated 2025-03-24 12:01:35
+ * @lastUpdated 2025-03-24 13:13:24
  */
 import { workoutConfig, musicSettings, workoutState, appSettings } from './settings.js';
-import { saveMusicSettings } from './config.js';
 
 // Background music using Howler.js
 let backgroundMusic = null;
@@ -15,6 +14,7 @@ let audioInitialized = false;
 // For iOS compatibility
 let soundsInitialized = false;
 let soundsQueue = [];
+let unlockAttempted = false;
 
 // Music tracks collection - would be populated from settings.js
 const musicTracks = {
@@ -47,6 +47,36 @@ const soundEffects = {
 // Sound effect instances for caching
 const soundInstances = {};
 
+// Initialize Audio - directly called when module loads to ensure early setup
+(function immediateInit() {
+    try {
+        // Create an AudioContext to help iOS Safari
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (window.AudioContext) {
+            const context = new AudioContext();
+            console.log('AudioContext created with state:', context.state);
+
+            // Try to resume if suspended
+            if (context.state === 'suspended') {
+                context.resume().then(() => {
+                    console.log('AudioContext resumed successfully');
+                }).catch(err => {
+                    console.warn('AudioContext resume failed:', err);
+                });
+            }
+        }
+
+        // Set up event listeners for user interaction
+        ['touchstart', 'touchend', 'mousedown', 'keydown'].forEach(event => {
+            document.addEventListener(event, unlockAudio, { once: false });
+        });
+
+        console.log('Audio immediate setup complete');
+    } catch (e) {
+        console.error('Audio immediate setup failed:', e);
+    }
+})();
+
 // Initialize Audio
 export function initAudio() {
     if (audioInitialized) return true;
@@ -58,37 +88,53 @@ export function initAudio() {
             return false;
         }
 
+        console.log('Initializing audio system...');
+
         // Set up Howler.js global settings for iOS
         Howler.autoUnlock = true; // Enable auto-unlock for mobile
         Howler.html5PoolSize = 10; // Increase html5 pool size for better reliability
 
         // Force unlock audio context if suspended
         if (Howler.ctx && Howler.ctx.state === 'suspended') {
+            console.log('Resuming Howler audio context on init...');
             Howler.ctx.resume().then(() => {
                 console.log('Howler audio context resumed on init');
+            }).catch(err => {
+                console.warn('Howler context resume failed:', err);
             });
         }
 
         // Initialize sound effects for iOS
         initSoundEffects();
 
-        // Play a silent sound to unlock audio on iOS
-        const silentSound = new Howl({
+        // Play a silent sound to unlock audio (HTML5 Audio method)
+        const silentSound = new Audio('audio/tap.mp3');
+        silentSound.volume = 0.01;
+        silentSound.play().then(() => {
+            console.log('Silent sound played using HTML5 Audio');
+        }).catch(err => {
+            console.warn('Expected silent sound play error:', err);
+        });
+
+        // Also try with Howler
+        const silentHowl = new Howl({
             src: ['audio/tap.mp3'],
             volume: 0.01,
-            autoplay: true,
+            html5: true,
             onend: function() {
-                console.log('Silent sound played successfully');
+                console.log('Silent Howl sound played successfully');
             },
             onloaderror: function() {
-                console.warn('Silent sound load error');
+                console.warn('Silent Howl sound load error');
             }
         });
 
-        audioInitialized = true;
-        console.log('Audio system initialized');
+        silentHowl.play();
 
-        // Enable iOS workaround for audio unlocking
+        audioInitialized = true;
+        console.log('Audio system initialized successfully');
+
+        // Setup iOS audio unlocking
         setupiOSAudioUnlock();
 
         return true;
@@ -100,19 +146,24 @@ export function initAudio() {
 
 // Initialize sound effects for iOS compatibility
 function initSoundEffects() {
+    console.log('Initializing sound effects...');
+
     // Preload common sound effects as Howl instances
     Object.entries(soundEffects).forEach(([type, src]) => {
+        console.log(`Loading sound: ${type} from ${src}`);
+
         soundInstances[type] = new Howl({
             src: [src],
             volume: 0.7,
             html5: false, // Use Web Audio API for sound effects
             preload: true,
-            onload: () => console.log(`Sound ${type} loaded`),
+            onload: () => console.log(`Sound ${type} loaded successfully`),
             onloaderror: (id, err) => console.error(`Sound ${type} loading error:`, err)
         });
     });
 
     soundsInitialized = true;
+    console.log('Sound effects initialized successfully');
 
     // Process any queued sounds
     processSoundQueue();
@@ -128,7 +179,7 @@ function setupiOSAudioUnlock() {
         // Use multiple events for iOS
         const unlockEvents = ['touchend', 'touchstart', 'click', 'mousedown'];
         unlockEvents.forEach(event => {
-            document.addEventListener(event, unlockAudio, {once: true});
+            document.addEventListener(event, unlockAudio, {once: false});
         });
 
         // Also add a tiny tap sound to ensure unlock works
@@ -144,10 +195,30 @@ function setupiOSAudioUnlock() {
 
 // Unlock audio function for iOS
 function unlockAudio() {
+    // Don't attempt too frequently
+    if (unlockAttempted && Date.now() - unlockAttempted < 1000) {
+        return;
+    }
+
+    unlockAttempted = Date.now();
     console.log('Attempting to unlock audio...');
 
     // Try to play a short sound
     playSound('tap', 0.01);
+
+    // Try to unlock any Web Audio context
+    if (window.AudioContext || window.webkitAudioContext) {
+        try {
+            const tempContext = new (window.AudioContext || window.webkitAudioContext)();
+            tempContext.resume().then(() => {
+                console.log('AudioContext unlocked on user interaction');
+            }).catch(err => {
+                console.warn('AudioContext resume failed:', err);
+            });
+        } catch (e) {
+            console.warn('AudioContext creation failed:', e);
+        }
+    }
 
     // Also try to unlock directly with Howler
     if (Howler.ctx && Howler.ctx.state === 'suspended') {
@@ -156,6 +227,8 @@ function unlockAudio() {
 
             // Process any sound queue that built up
             processSoundQueue();
+        }).catch(err => {
+            console.warn('Howler context resume failed:', err);
         });
     }
 
@@ -166,10 +239,20 @@ function unlockAudio() {
             console.log('Expected audio unlock element error:', err)
         );
     }
+
+    // Start background music if enabled and we're in a workout
+    if (musicSettings.enabled && workoutState.isRunning && !workoutState.isPaused && !workoutState.isBreak) {
+        if (!backgroundMusic || (backgroundMusic && backgroundMusic.state() === 'loaded' && backgroundMusic.playing() === false)) {
+            console.log('Attempting to start background music from unlock event');
+            startBackgroundMusic();
+        }
+    }
 }
 
 // Start music if enabled
 export function startAudio() {
+    console.log('Starting audio...');
+
     // Initialize audio if not already initialized
     if (!audioInitialized) {
         initAudio();
@@ -180,18 +263,25 @@ export function startAudio() {
 
     // Start background music if enabled
     if (musicSettings.enabled) {
+        console.log('Music is enabled, starting background music');
         startBackgroundMusic();
+    } else {
+        console.log('Music is disabled, skipping background music');
     }
 }
 
 // Stop all audio
 export function stopAudio() {
+    console.log('Stopping audio...');
+
     // Stop background music
     stopBackgroundMusic();
 }
 
 // Start background music
 function startBackgroundMusic() {
+    console.log('Starting background music...');
+
     // Stop any existing music
     stopBackgroundMusic();
 
@@ -210,32 +300,78 @@ function startBackgroundMusic() {
     // Get available tracks in the selected category
     const availableTracks = musicTracks[category] || musicTracks.energetic;
 
+    console.log(`Using music category: ${category}, ${availableTracks.length} tracks available`);
+
     // Randomly select a track
     const selectedTrack = availableTracks[Math.floor(Math.random() * availableTracks.length)];
+    console.log(`Selected music track: ${selectedTrack.title} from ${selectedTrack.src}`);
 
-    // Create a new Howl instance for the background music
+    // Try to unlock audio context first
+    if (Howler.ctx && Howler.ctx.state === 'suspended') {
+        console.log('Attempting to resume audio context before playing music');
+        Howler.ctx.resume().catch(err => {
+            console.warn('Error resuming audio context:', err);
+        });
+    }
+
+    // Create a new Howl instance for the background music - use HTML5 Audio as fallback
     backgroundMusic = new Howl({
         src: [selectedTrack.src],
         loop: true,
         volume: musicSettings.volume,
-        html5: true, // Better for longer files
+        html5: true, // Better for longer files and avoid Web Audio API issues
+        format: ['mp3'],
+        autoplay: false, // Don't auto-play, we'll handle this manually
+        preload: true, // Preload the audio
         onload: function() {
             console.log(`Loaded music track: ${selectedTrack.title}`);
+
+            // Once loaded, try to play
+            this.play();
         },
         onplay: function() {
             currentMusicTrack = selectedTrack;
-            console.log(`Playing: ${selectedTrack.title}`);
+            console.log(`Now playing: ${selectedTrack.title}`);
 
             // Update music track display
             updateMusicTrackDisplay();
         },
         onloaderror: function(id, err) {
             console.error('Music loading error:', err);
+
+            // Try a fallback approach with HTML5 Audio
+            try {
+                const audioElement = new Audio(selectedTrack.src);
+                audioElement.loop = true;
+                audioElement.volume = musicSettings.volume;
+
+                audioElement.oncanplaythrough = () => {
+                    console.log('Music loaded via HTML5 Audio, attempting to play');
+                    audioElement.play().catch(err => {
+                        console.error('HTML5 Audio play error:', err);
+                    });
+                };
+
+                audioElement.onplay = () => {
+                    currentMusicTrack = selectedTrack;
+                    console.log(`Now playing via HTML5 Audio: ${selectedTrack.title}`);
+                    updateMusicTrackDisplay();
+                };
+
+                audioElement.load();
+            } catch (e) {
+                console.error('HTML5 Audio fallback failed:', e);
+            }
+        },
+        onplayerror: function(id, err) {
+            console.error('Music play error:', err, 'for ID:', id);
         }
     });
 
-    // Start playing
-    backgroundMusic.play();
+    // Try playing
+    console.log('Attempting to play background music...');
+    const playId = backgroundMusic.play();
+    console.log('Play ID:', playId);
 }
 
 // Update music track display
@@ -255,6 +391,7 @@ function updateMusicTrackDisplay() {
 // Stop background music
 function stopBackgroundMusic() {
     if (backgroundMusic) {
+        console.log('Stopping background music');
         backgroundMusic.stop();
         backgroundMusic.unload();
         backgroundMusic = null;
@@ -268,8 +405,9 @@ function stopBackgroundMusic() {
 // Toggle background music
 export function toggleBackgroundMusic() {
     musicSettings.enabled = !musicSettings.enabled;
+    console.log(`Music ${musicSettings.enabled ? 'enabled' : 'disabled'}`);
 
-    if (musicSettings.enabled && workoutState.isRunning && !workoutState.isPaused) {
+    if (musicSettings.enabled && workoutState.isRunning && !workoutState.isPaused && !workoutState.isBreak) {
         startBackgroundMusic();
     } else if (!musicSettings.enabled) {
         stopBackgroundMusic();
@@ -289,8 +427,8 @@ export function toggleBackgroundMusic() {
     // Always update the music track display, even if music is off
     updateMusicTrackDisplay();
 
-    // Save the new setting
-    saveMusicSettings();
+    // Save music settings to localStorage
+    saveToLocalStorage('musicSettings', musicSettings);
 
     // Play a UI sound for iOS compatibility
     playSound('tap');
@@ -301,19 +439,33 @@ export function toggleBackgroundMusic() {
 // Set music volume
 export function setMusicVolume(volume) {
     musicSettings.volume = volume;
+    console.log(`Setting music volume to ${volume}`);
 
     if (backgroundMusic) {
         backgroundMusic.volume(volume);
     }
 
-    // Save the new setting
-    saveMusicSettings();
+    // Save music settings to localStorage
+    saveToLocalStorage('musicSettings', musicSettings);
+}
+
+// Save settings to localStorage
+function saveToLocalStorage(key, data) {
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+        console.error(`Error saving ${key} to localStorage:`, e);
+    }
 }
 
 // Get current music info
 export function getCurrentMusicInfo() {
+    const isPlaying = !!backgroundMusic &&
+                     backgroundMusic.state() === 'loaded' &&
+                     backgroundMusic.playing();
+
     return {
-        playing: !!backgroundMusic && !backgroundMusic.paused(),
+        playing: isPlaying,
         track: currentMusicTrack,
         settings: { ...musicSettings }
     };
@@ -333,6 +485,7 @@ export function playSound(type, customVolume) {
 
     // If not initialized or still initializing, queue the sound
     if (!soundsInitialized) {
+        console.log(`Sound ${type} queued (not initialized yet)`);
         soundsQueue.push({ type, volume, timestamp: Date.now() });
         return;
     }
@@ -341,6 +494,15 @@ export function playSound(type, customVolume) {
     const sound = soundInstances[type];
 
     if (sound) {
+        // Try to unlock audio context first if suspended
+        if (Howler.ctx && Howler.ctx.state === 'suspended') {
+            Howler.ctx.resume().then(() => {
+                console.log('Audio context resumed before playing sound');
+            }).catch(err => {
+                console.warn('Audio context resume failed:', err);
+            });
+        }
+
         // Set volume and play
         sound.volume(volume);
         const id = sound.play();
@@ -350,6 +512,7 @@ export function playSound(type, customVolume) {
         const soundFile = soundEffects[type];
         if (!soundFile) return;
 
+        console.log(`Using HTML5 Audio fallback for ${type}`);
         try {
             const audio = new Audio(soundFile);
             audio.volume = volume;
@@ -357,7 +520,9 @@ export function playSound(type, customVolume) {
 
             // Handle promise to catch errors (important for iOS)
             if (playPromise !== undefined) {
-                playPromise.catch(error => {
+                playPromise.then(() => {
+                    console.log(`HTML5 Audio playing ${type}`);
+                }).catch(error => {
                     console.warn('HTML5 Audio play failed:', error);
                 });
             }
@@ -426,17 +591,17 @@ export function setupMusicControls() {
 
 // Play specific sound at the start/end of each round
 export function playRoundStartSound() {
-    playSound('roundStart');
+    playSound('roundStart', 0.8);
 }
 
 export function playRoundEndSound() {
-    playSound('roundEnd');
+    playSound('roundEnd', 0.8);
 }
 
 export function playCountdownSound() {
-    playSound('countdown');
+    playSound('countdown', 0.6);
 }
 
 export function playCompleteSound() {
-    playSound('complete');
+    playSound('complete', 0.8);
 }

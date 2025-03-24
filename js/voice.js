@@ -2,7 +2,7 @@
  * HeavyHITR - Voice Coach Module
  * Provides voice guidance using ResponsiveVoice.js
  * @author danweboptic
- * @lastUpdated 2025-03-24 12:01:35
+ * @lastUpdated 2025-03-24 13:13:24
  */
 
 import { voiceSettings } from './settings.js';
@@ -181,28 +181,51 @@ export function announceCountdown(number) {
 export function announceRoundStart(roundNumber, totalRounds, workoutType, focus, instruction) {
     if (!voiceSettings.enabled || !voiceSettings.instructions) return;
 
-    // Debug log to identify what values we have
-    console.log(`Announcing start - Round ${roundNumber}/${totalRounds}, Type: ${workoutType}, Focus: ${focus}, Instruction: ${instruction}`);
+    // Full debug log of all arguments
+    console.log('=== VOICE ANNOUNCE ROUND START ===');
+    console.log('roundNumber:', roundNumber);
+    console.log('totalRounds:', totalRounds);
+    console.log('workoutType:', workoutType);
+    console.log('focus:', focus);
+    console.log('focus type:', typeof focus);
+    console.log('instruction:', instruction);
 
     // Handle case where focus or instruction might be undefined
     const safeWorkoutType = workoutType || 'workout';
+
+    // Direct access to focus if it's an object
+    let focusText = '';
+    if (focus) {
+        if (typeof focus === 'object' && focus.focus) {
+            focusText = focus.focus;
+            console.log('Focus is an object, using focus.focus:', focusText);
+        } else if (typeof focus === 'string') {
+            focusText = focus;
+            console.log('Focus is a string:', focusText);
+        }
+    }
+
+    // Create the message to speak
     let message;
+    if (focusText && focusText.trim() !== '') {
+        // Include the specific focus in the announcement
+        message = `Round ${roundNumber} of ${totalRounds}. ${focusText}.`;
 
-    // ALWAYS announce the specific focus if we have it - this is key
-    if (focus && typeof focus === 'string' && focus.trim() !== '') {
-        message = `Round ${roundNumber} of ${totalRounds}. ${focus}.`;
-
-        // Add instruction if it's available and not too long
+        // Add instruction if available and not too long
         if (instruction && typeof instruction === 'string' && instruction.trim() !== '') {
             if (instruction.length < 80) { // Only add if not too long
                 message += ` ${instruction}`;
             }
         }
     } else {
-        // Only fall back to this if we don't have a focus
-        message = `Round ${roundNumber} of ${totalRounds}.`;
+        // Generic announcement without specific focus
+        message = `Round ${roundNumber} of ${totalRounds}. ${safeWorkoutType} workout.`;
     }
 
+    // Add a final log of what will be spoken
+    console.log('Final message to speak:', message);
+
+    // Speak the announcement
     speak(message, 'high');
 }
 
