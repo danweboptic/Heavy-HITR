@@ -368,6 +368,7 @@ export function getFocusForRound(workoutContent, workoutType, roundNumber) {
     // Debug log the content structure
     if (content) {
         console.log(`Found ${content.length} items for ${workoutType}`);
+        console.log(`First item example:`, content[0]);
     } else {
         console.error(`No content array found for workout type: ${workoutType}`);
     }
@@ -399,6 +400,8 @@ export function updateWorkoutFocus(focusContent) {
         return null;
     }
 
+    console.log('Updating UI with focus content:', focusContent);
+
     // Update UI elements if they exist
     if (elements.focusTitle && elements.focusInstruction) {
         elements.focusTitle.textContent = focusContent.focus || "Focus on form";
@@ -410,35 +413,48 @@ export function updateWorkoutFocus(focusContent) {
 
 // Update coach message
 export function updateCoachMessage(messageType, coachMessages) {
-    // Special handling for striking technique
-    if (messageType === 'technique' && workoutConfig.workoutType === 'striking' && coachMessages.strikingTechnique) {
-        const message = getRandomItem(coachMessages.strikingTechnique);
-        elements.coachMessage.textContent = message;
-    }
-    // Special handling for footwork technique
-    else if (messageType === 'technique' && workoutConfig.workoutType === 'footwork' && coachMessages.footworkTechnique) {
-        const message = getRandomItem(coachMessages.footworkTechnique);
-        elements.coachMessage.textContent = message;
-    }
-    // Special handling for defense technique
-    else if (messageType === 'technique' && workoutConfig.workoutType === 'defense' && coachMessages.defenseTechnique) {
-        const message = getRandomItem(coachMessages.defenseTechnique);
-        elements.coachMessage.textContent = message;
-    }
-    // Special handling for conditioning technique
-    else if (messageType === 'technique' && workoutConfig.workoutType === 'conditioning' && coachMessages.conditioningTechnique) {
-        const message = getRandomItem(coachMessages.conditioningTechnique);
-        elements.coachMessage.textContent = message;
-    }
-    // Default messages
-    else if (coachMessages[messageType]) {
-        const message = getRandomItem(coachMessages[messageType]);
-        elements.coachMessage.textContent = message;
+    // Check that coachMessages is properly defined and log if it's not
+    if (!coachMessages) {
+        console.error('coachMessages not defined in updateCoachMessage');
+        return;
     }
 
-    // Add animation
-    elements.coachMessage.classList.add('slide-in');
-    setTimeout(() => elements.coachMessage.classList.remove('slide-in'), 500);
+    console.log('Updating coach message:', messageType);
+    console.log('Available message types:', Object.keys(coachMessages));
+
+    let message = null;
+
+    // Special handling for workout-type specific technique messages
+    if (messageType === 'technique') {
+        const specificType = `${workoutConfig.workoutType}Technique`;
+
+        // Check if we have specific technique messages for this workout type
+        if (coachMessages[specificType] && Array.isArray(coachMessages[specificType])) {
+            message = getRandomItem(coachMessages[specificType]);
+            console.log(`Using ${specificType} message:`, message);
+        } else {
+            // Fall back to generic technique messages
+            message = getRandomItem(coachMessages.technique);
+            console.log('Using generic technique message:', message);
+        }
+    }
+    // Handle other message types
+    else if (coachMessages[messageType] && Array.isArray(coachMessages[messageType])) {
+        message = getRandomItem(coachMessages[messageType]);
+        console.log(`Using ${messageType} message:`, message);
+    } else {
+        console.warn(`No messages found for type: ${messageType}`);
+        message = "Keep pushing!"; // Default fallback
+    }
+
+    // Update the UI element if it exists and we have a message
+    if (elements.coachMessage && message) {
+        elements.coachMessage.textContent = message;
+
+        // Add animation
+        elements.coachMessage.classList.add('slide-in');
+        setTimeout(() => elements.coachMessage.classList.remove('slide-in'), 500);
+    }
 }
 
 // Toggle workout pause UI

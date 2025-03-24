@@ -330,8 +330,12 @@ function startBackgroundMusic() {
             this.play();
         },
         onplay: function() {
+            // Only log if this is a new track or we're starting playback for the first time
+            if (!currentMusicTrack || currentMusicTrack.title !== selectedTrack.title) {
+                console.log(`Now playing: ${selectedTrack.title}`);
+            }
+
             currentMusicTrack = selectedTrack;
-            console.log(`Now playing: ${selectedTrack.title}`);
 
             // Update music track display
             updateMusicTrackDisplay();

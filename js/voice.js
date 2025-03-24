@@ -2,7 +2,7 @@
  * HeavyHITR - Voice Coach Module
  * Provides voice guidance using ResponsiveVoice.js
  * @author danweboptic
- * @lastUpdated 2025-03-24 13:13:24
+ * @lastUpdated 2025-03-24 13:36:04
  */
 
 import { voiceSettings } from './settings.js';
@@ -193,23 +193,13 @@ export function announceRoundStart(roundNumber, totalRounds, workoutType, focus,
     // Handle case where focus or instruction might be undefined
     const safeWorkoutType = workoutType || 'workout';
 
-    // Direct access to focus if it's an object
-    let focusText = '';
-    if (focus) {
-        if (typeof focus === 'object' && focus.focus) {
-            focusText = focus.focus;
-            console.log('Focus is an object, using focus.focus:', focusText);
-        } else if (typeof focus === 'string') {
-            focusText = focus;
-            console.log('Focus is a string:', focusText);
-        }
-    }
-
     // Create the message to speak
     let message;
-    if (focusText && focusText.trim() !== '') {
-        // Include the specific focus in the announcement
-        message = `Round ${roundNumber} of ${totalRounds}. ${focusText}.`;
+
+    // Check if we have a valid focus string
+    if (focus && typeof focus === 'string' && focus.trim() !== '') {
+        // We have a proper focus string, use it directly
+        message = `Round ${roundNumber} of ${totalRounds}. ${focus}.`;
 
         // Add instruction if available and not too long
         if (instruction && typeof instruction === 'string' && instruction.trim() !== '') {
@@ -217,9 +207,12 @@ export function announceRoundStart(roundNumber, totalRounds, workoutType, focus,
                 message += ` ${instruction}`;
             }
         }
+
+        console.log("Using specific focus text:", focus);
     } else {
-        // Generic announcement without specific focus
-        message = `Round ${roundNumber} of ${totalRounds}. ${safeWorkoutType} workout.`;
+        // Use generic workout type message as fallback
+        message = `Round ${roundNumber} of ${totalRounds}. ${safeWorkoutType.charAt(0).toUpperCase() + safeWorkoutType.slice(1)} round.`;
+        console.log("Using generic workout type message");
     }
 
     // Add a final log of what will be spoken

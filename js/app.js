@@ -656,7 +656,7 @@ function updateTimerDisplay() {
     }
 }
 
-// Update workout timer
+// Update workout timer - version for app.js with coachMessages inlined
 function updateWorkoutTimer() {
     if (workoutState.isPaused) return;
 
@@ -666,15 +666,18 @@ function updateWorkoutTimer() {
     // Update timer display
     updateTimerDisplay();
 
+    // Final countdown sounds
+    if (workoutState.timeRemaining <= 3 && workoutState.timeRemaining > 0) {
+        playCountdownSound();
+        announceCountdown(workoutState.timeRemaining);
+    }
+
     // Check if time is up for current round or break
     if (workoutState.timeRemaining <= 0) {
         if (workoutState.isBreak) {
             // Break is over, start new round
             workoutState.isBreak = false;
             workoutState.currentRound++;
-
-            // Increment exercise index for workout focus
-            workoutState.exerciseIndex++;
 
             // Check if workout is complete
             if (workoutState.currentRound > workoutConfig.rounds) {
@@ -684,21 +687,62 @@ function updateWorkoutTimer() {
 
             // Setup for new round
             workoutState.timeRemaining = workoutConfig.roundLength;
-
-            // Update UI
             updateRoundIndicators();
-            updateWorkoutFocus();
 
-            // Show coach message
-            updateCoachMessage(`Round ${workoutState.currentRound} - Let's go!`);
+            // Directly get focus content for this round
+            let focusContent = getFocusForRound(workoutContent, workoutConfig.workoutType, workoutState.currentRound);
+
+            // Update UI with this focus
+            updateWorkoutFocus(focusContent);
+
+            // Define simple coach messages if not available from import
+            const defaultCoachMessages = {
+                roundStart: ["Let's go!", "Round starting", "Focus now"],
+                roundEnd: ["Round complete", "Good work", "Break time"],
+                breakTime: ["Rest up", "Recover", "Breathe"],
+                countdown: ["Get ready", "Prepare", "Starting soon"],
+                encouragement: ["Keep going", "You got this", "Stay strong"],
+                technique: ["Focus on form", "Good technique", "Stay sharp"],
+                workoutComplete: ["Workout complete!", "Great job!", "You did it!"]
+            };
+
+            // Use either imported coachMessages or default ones
+            const messageSource = typeof coachMessages !== 'undefined' ? coachMessages : defaultCoachMessages;
+            updateCoachMessage('roundStart', messageSource);
 
             // Play round start sound
-            if (appSettings.soundEffects) {
-                playSound('roundStart');
-            }
+            playRoundStartSound();
 
-            // Announce round start with voice coach
-            announceRoundStart(workoutState.currentRound, workoutConfig.rounds, workoutConfig.workoutType);
+            // Announce break end first
+            announceBreakEnd();
+
+            // After a brief pause, announce the new round with focus
+            setTimeout(() => {
+                if (focusContent) {
+                    console.log("Announcing round start with focus:", focusContent.focus);
+
+                    // Announce with focus text directly
+                    announceRoundStart(
+                        workoutState.currentRound,
+                        workoutConfig.rounds,
+                        workoutConfig.workoutType,
+                        focusContent.focus,
+                        focusContent.instruction
+                    );
+                } else {
+                    console.log("Announcing without focus");
+
+                    // Fallback without focus content
+                    announceRoundStart(
+                        workoutState.currentRound,
+                        workoutConfig.rounds,
+                        workoutConfig.workoutType
+                    );
+                }
+            }, 2000);
+
+            // Start audio for new round
+            startAudio();
         } else {
             // Round is over, start break (unless it's the last round)
             if (workoutState.currentRound === workoutConfig.rounds) {
@@ -709,65 +753,73 @@ function updateWorkoutTimer() {
             workoutState.isBreak = true;
             workoutState.timeRemaining = workoutConfig.breakLength;
 
-            // Show coach message
-            updateCoachMessage('Rest and recover. Next round coming up.');
+            // Define simple coach messages if not available from import
+            const defaultCoachMessages = {
+                roundStart: ["Let's go!", "Round starting", "Focus now"],
+                roundEnd: ["Round complete", "Good work", "Break time"],
+                breakTime: ["Rest up", "Recover", "Breathe"],
+                countdown: ["Get ready", "Prepare", "Starting soon"],
+                encouragement: ["Keep going", "You got this", "Stay strong"],
+                technique: ["Focus on form", "Good technique", "Stay sharp"],
+                workoutComplete: ["Workout complete!", "Great job!", "You did it!"]
+            };
+
+            // Use either imported coachMessages or default ones
+            const messageSource = typeof coachMessages !== 'undefined' ? coachMessages : defaultCoachMessages;
+            updateCoachMessage('roundEnd', messageSource);
 
             // Play round end sound
-            if (appSettings.soundEffects) {
-                playSound('roundEnd');
-            }
+            playRoundEndSound();
 
-            // Announce round end with voice coach
-            announceRoundEnd(false);
+            // Announce round end
+            announceRoundEnd(workoutState.currentRound === workoutConfig.rounds);
+
+            // Stop audio during break
+            stopAudio();
         }
     } else {
-        // For countdown timer in last seconds of round or break
-        if (appSettings.countdownTimer && workoutState.timeRemaining <= 3) {
-            // Play countdown sound
-            if (appSettings.soundEffects) {
-                playSound('countdown');
+        // Define simple coach messages if not available from import
+        const defaultCoachMessages = {
+            roundStart: ["Let's go!", "Round starting", "Focus now"],
+            roundEnd: ["Round complete", "Good work", "Break time"],
+            breakTime: ["Rest up", "Recover", "Breathe"],
+            countdown: ["Get ready", "Prepare", "Starting soon"],
+            encouragement: ["Keep going", "You got this", "Stay strong"],
+            technique: ["Focus on form", "Good technique", "Stay sharp"],
+            workoutComplete: ["Workout complete!", "Great job!", "You did it!"]
+        };
+
+        // Use either imported coachMessages or default ones
+        const messageSource = typeof coachMessages !== 'undefined' ? coachMessages : defaultCoachMessages;
+
+        // During workout, periodically update coach messages
+        if (!workoutState.isBreak) {
+            // Halfway point announcement
+            if (workoutState.timeRemaining === Math.floor(workoutConfig.roundLength / 2)) {
+                updateCoachMessage('encouragement', messageSource);
+                announceEncouragement(workoutConfig.workoutType);
             }
 
-            // Announce countdown
-            announceCountdown(workoutState.timeRemaining);
+            // Regular encouragement
+            else if (workoutState.timeRemaining % 30 === 0) {
+                const messageType = Math.random() > 0.5 ? 'encouragement' : 'technique';
+                updateCoachMessage(messageType, messageSource);
 
-            // Show countdown in coach message
-            updateCoachMessage(`${workoutState.timeRemaining}...`);
+                // For every minute, give voice encouragement
+                if (workoutState.timeRemaining % 60 === 0) {
+                    announceEncouragement(workoutConfig.workoutType);
+                }
+            }
         }
 
-        // Encourage during workout with voice coach (approximately every 20 seconds)
-        if (!workoutState.isBreak &&
-            workoutState.timeRemaining % 20 === 0 &&
-            workoutState.timeRemaining > 5 &&
-            workoutState.timeRemaining < workoutConfig.roundLength - 5) {
-
-            // Get a random encouragement message
-            const encouragementMessages = coachMessages.encouragement || [
-                "Keep it up! You're doing great!",
-                "Stay strong! Push through!",
-                "That's it! Keep that energy!"
-            ];
-
-            const message = encouragementMessages[Math.floor(Math.random() * encouragementMessages.length)];
-
-            // Show coach message
-            updateCoachMessage(message);
-
-            // Announce with voice coach
-            announceEncouragement(workoutConfig.workoutType);
+        // During break, update break messages
+        if (workoutState.isBreak && workoutState.timeRemaining % 10 === 0) {
+            updateCoachMessage('breakTime', messageSource);
         }
 
-        // Announce halfway through long rounds
-        if (!workoutState.isBreak &&
-            workoutConfig.roundLength >= 60 &&
-            workoutState.timeRemaining === Math.floor(workoutConfig.roundLength / 2)) {
-            updateCoachMessage('Halfway there!');
-        }
-
-        // Announce when break is almost over
-        if (workoutState.isBreak && workoutState.timeRemaining === 5) {
-            updateCoachMessage('Get ready, next round starting soon.');
-            announceBreakEnd();
+        // Last 3 seconds of break, countdown
+        if (workoutState.isBreak && workoutState.timeRemaining <= 3) {
+            updateCoachMessage('countdown', messageSource);
         }
     }
 }
