@@ -2,7 +2,7 @@
  * HeavyHITR - Audio Module
  * Handles audio playback
  * @author danweboptic
- * @lastUpdated 2025-03-24 09:51:31
+ * @lastUpdated 2025-03-24 11:25:32
  */
 import { workoutConfig, musicSettings, workoutState, appSettings } from './settings.js';
 import { saveMusicSettings } from './config.js';
@@ -49,15 +49,41 @@ const soundInstances = {};
 
 // Initialize Audio
 export function initAudio() {
-    if (audioInitialized) return;
+    if (audioInitialized) return true;
 
     try {
+        // Ensure Howler is available
+        if (typeof window.Howl !== 'function') {
+            console.error('Howler.js not loaded!');
+            return false;
+        }
+
         // Set up Howler.js global settings for iOS
         Howler.autoUnlock = true; // Enable auto-unlock for mobile
         Howler.html5PoolSize = 10; // Increase html5 pool size for better reliability
 
+        // Force unlock audio context if suspended
+        if (Howler.ctx && Howler.ctx.state === 'suspended') {
+            Howler.ctx.resume().then(() => {
+                console.log('Howler audio context resumed on init');
+            });
+        }
+
         // Initialize sound effects for iOS
         initSoundEffects();
+
+        // Play a silent sound to unlock audio on iOS
+        const silentSound = new Howl({
+            src: ['audio/tap.mp3'],
+            volume: 0.01,
+            autoplay: true,
+            onend: function() {
+                console.log('Silent sound played successfully');
+            },
+            onloaderror: function() {
+                console.warn('Silent sound load error');
+            }
+        });
 
         audioInitialized = true;
         console.log('Audio system initialized');
@@ -99,9 +125,11 @@ function setupiOSAudioUnlock() {
     if (isIOS) {
         console.log('iOS device detected, setting up audio unlock');
 
-        // Use a touchend event for iOS
-        document.addEventListener('touchend', unlockAudio, {once: true});
-        document.addEventListener('click', unlockAudio, {once: true});
+        // Use multiple events for iOS
+        const unlockEvents = ['touchend', 'touchstart', 'click', 'mousedown'];
+        unlockEvents.forEach(event => {
+            document.addEventListener(event, unlockAudio, {once: true});
+        });
 
         // Also add a tiny tap sound to ensure unlock works
         const unlockElement = document.getElementById('audio-unlock');
@@ -142,6 +170,14 @@ function unlockAudio() {
 
 // Start music if enabled
 export function startAudio() {
+    // Initialize audio if not already initialized
+    if (!audioInitialized) {
+        initAudio();
+    }
+
+    // Play workout start sound
+    playSound('start');
+
     // Start background music if enabled
     if (musicSettings.enabled) {
         startBackgroundMusic();
@@ -287,6 +323,11 @@ export function getCurrentMusicInfo() {
 export function playSound(type, customVolume) {
     if (!appSettings.soundEffects && type !== 'tap') return;
 
+    // Initialize audio if not already initialized
+    if (!audioInitialized) {
+        initAudio();
+    }
+
     // Volume can be customized or default to 0.7 (70%)
     const volume = customVolume !== undefined ? customVolume : 0.7;
 
@@ -302,7 +343,8 @@ export function playSound(type, customVolume) {
     if (sound) {
         // Set volume and play
         sound.volume(volume);
-        sound.play();
+        const id = sound.play();
+        console.log(`Playing sound: ${type} with ID: ${id}`);
     } else {
         // Fallback to HTML5 Audio if the sound wasn't preloaded
         const soundFile = soundEffects[type];
@@ -351,19 +393,19 @@ export function setupMusicControls() {
     const musicToggleBtn = document.getElementById('toggle-music');
     const musicStatusText = document.getElementById('music-status');
     const musicVolumeSlider = document.getElementById('music-volume');
-    
+
     // Load music settings
     const musicInfo = getCurrentMusicInfo();
-    
+
     // Set initial music control states
     if (musicVolumeSlider) {
         musicVolumeSlider.value = musicInfo.settings.volume;
     }
-    
+
     if (musicStatusText) {
         musicStatusText.textContent = musicInfo.settings.enabled ? 'ON' : 'OFF';
     }
-    
+
     // Music toggle event
     if (musicToggleBtn) {
         musicToggleBtn.addEventListener('click', function() {
@@ -373,11 +415,28 @@ export function setupMusicControls() {
             }
         });
     }
-    
+
     // Music volume event
     if (musicVolumeSlider) {
         musicVolumeSlider.addEventListener('input', function() {
             setMusicVolume(parseFloat(this.value));
         });
     }
+}
+
+// Play specific sound at the start/end of each round
+export function playRoundStartSound() {
+    playSound('roundStart');
+}
+
+export function playRoundEndSound() {
+    playSound('roundEnd');
+}
+
+export function playCountdownSound() {
+    playSound('countdown');
+}
+
+export function playCompleteSound() {
+    playSound('complete');
 }

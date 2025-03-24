@@ -2,7 +2,7 @@
  * HeavyHITR - Voice Coach Module
  * Provides voice guidance using ResponsiveVoice.js
  * @author danweboptic
- * @lastUpdated 2025-03-24 10:42:15
+ * @lastUpdated 2025-03-24 11:28:12
  */
 
 import { voiceSettings } from './settings.js';
@@ -71,7 +71,7 @@ function getVoiceName() {
         'en-AU-female': 'Australian Female'
     };
 
-    return voiceMap[voiceSettings.voice] || 'US English Female';
+    return voiceMap[voiceSettings.voice] || 'US English Male';
 }
 
 // Speak text using ResponsiveVoice
@@ -101,10 +101,10 @@ export function speak(text, priority = 'medium') {
     // Start speaking
     isSpeaking = true;
 
-    // Speech parameters
+    // Speech parameters - reduced rate from 1.1 to 0.9 to make it slower and clearer
     const params = {
         pitch: 1,
-        rate: 1.1,
+        rate: 0.9, // Changed from 1.1 to 0.9 for a slower, clearer voice
         volume: voiceSettings.volume,
         onend: () => {
             isSpeaking = false;
@@ -129,6 +129,7 @@ export function speak(text, priority = 'medium') {
 
     // Start speaking with ResponsiveVoice
     try {
+        console.log(`Speaking: ${text}`);
         window.responsiveVoice.speak(text, getVoiceName(), params);
     } catch (error) {
         console.error('ResponsiveVoice speak error:', error);
@@ -169,14 +170,14 @@ export function announceCountdown(number) {
     speak(number.toString(), 'high');
 }
 
-// Round start announcement
-export function announceRoundStart(roundNumber, totalRounds, workoutType) {
+// Round start announcement with exercise focus
+export function announceRoundStart(roundNumber, totalRounds, workoutType, focus, instruction) {
     if (!voiceSettings.enabled || !voiceSettings.instructions) return;
 
     const messages = [
-        `Round ${roundNumber} of ${totalRounds}. Begin.`,
-        `Starting round ${roundNumber}.`,
-        `Round ${roundNumber}, focus on your ${workoutType}.`
+        `Round ${roundNumber} of ${totalRounds}. ${focus}. ${instruction}`,
+        `Starting round ${roundNumber}. Focus on ${focus}.`,
+        `Round ${roundNumber}, ${focus}. ${instruction}`
     ];
 
     const message = messages[Math.floor(Math.random() * messages.length)];
@@ -228,8 +229,8 @@ export function announceEncouragement(workoutType) {
 
     // Different encouragements based on workout type
     const encouragements = {
-        punching: [
-            "Keep those punches sharp.",
+        striking: [
+            "Keep those strikes sharp.",
             "Great power, maintain your form.",
             "Speed and accuracy, you're doing great."
         ],

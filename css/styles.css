@@ -713,6 +713,7 @@ body {
   flex-direction: column;
   gap: 1rem;
   width: 100%;
+  margin-top: 1rem; /* Added margin to push buttons away from stats */
 }
 
 .share-btn {
@@ -797,8 +798,24 @@ body {
   gap: 4px;
 }
 
+/* Add slide-in animation for coach messages */
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+}
+
 /* Responsive adjustments */
-@media (max-width: 375px) {
+@media (max-width: 400px) {
   .workout-categories {
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(2, 1fr);
@@ -821,5 +838,46 @@ body {
 
   .custom-workout-card {
     padding: 1.25rem;
+  }
+
+  /* Improved workout complete layout for small screens */
+  .complete-title {
+    font-size: 1.35rem;
+  }
+
+  .complete-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .stats-grid {
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-card-value {
+    font-size: 1.5rem;
+  }
+
+  .complete-actions {
+    margin-top: 0.5rem;
+  }
+}
+
+@media (min-width: 401px) and (max-width: 600px) {
+  /* Medium small device adjustments */
+  .timer-wrapper {
+    width: 210px;
+    height: 210px;
+  }
+
+  .workout-complete {
+    padding: 1.5rem 1rem;
+  }
+
+  .complete-header {
+    margin-bottom: 1.5rem;
   }
 }
