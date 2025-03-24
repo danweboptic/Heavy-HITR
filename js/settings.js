@@ -11,7 +11,7 @@ export const workoutConfig = {
     roundLength: 60,
     breakLength: 20,
     difficulty: 'intermediate',
-    workoutType: 'punching'
+    workoutType: 'striking'
 };
 
 // Workout state during active workout
